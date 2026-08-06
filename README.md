@@ -1,459 +1,310 @@
-# Gym Mobile
-### Melhor, o GymFlow
+# gym-mobile
 
-Aplicação web mobile-first para organizar rotinas de academia. O usuário cria uma conta, configura o perfil, consulta ou cadastra exercícios, monta treinos por dia da semana e acompanha a agenda em uma interface pensada para celular.
+PWA mobile-first do GymFlow. Cuida da interface, da sessão do usuário, do consumo da API do `gym-service` e do deploy do frontend na Vercel.
 
-> **Estado atual:** este repositório contém a fundação e o núcleo de planejamento do produto. O registro de séries durante o treino, histórico, gráficos reais, cronômetro, notificações e funcionamento offline ainda não foram implementados. Consulte [Funcionalidades e limitações](#funcionalidades-e-limitações).
+> **Estado atual: fase M1 concluída (fundação).**
+> Existem tema, navegação, páginas de erro, cliente de API tipado pelo contrato do backend e uma página de diagnóstico de conexão.
+> **Não existem** login, treinos, histórico, gráficos, cronômetro nem funcionamento offline. As telas dessas áreas são navegáveis e declaram explicitamente que a funcionalidade não foi construída — elas não exibem nenhum dado de exemplo. Consulte [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md) para o escopo completo.
 
 ## Sumário
 
-- [O que a aplicação faz](#o-que-a-aplicação-faz)
-- [Tecnologias](#tecnologias)
-- [Arquitetura](#arquitetura)
-- [Rotas e fluxos](#rotas-e-fluxos)
-- [Modelo de dados e segurança](#modelo-de-dados-e-segurança)
+- [Responsabilidades](#responsabilidades)
+- [Stack](#stack)
 - [Pré-requisitos](#pré-requisitos)
-- [Configuração rápida com um projeto Supabase remoto](#configuração-rápida-com-um-projeto-supabase-remoto)
-- [Configuração com Supabase local](#configuração-com-supabase-local)
-- [Autenticação](#autenticação)
 - [Como executar](#como-executar)
-- [Como validar e testar](#como-validar-e-testar)
-- [Scripts](#scripts)
+- [Configuração](#configuração)
+- [Rotas](#rotas)
+- [Como os tipos da API são gerados](#como-os-tipos-da-api-são-gerados)
+- [Tratamento de erros](#tratamento-de-erros)
+- [Acessibilidade](#acessibilidade)
 - [Estrutura de pastas](#estrutura-de-pastas)
-- [Funcionalidades e limitações](#funcionalidades-e-limitações)
-- [Solução de problemas](#solução-de-problemas)
-- [Lovable](#lovable)
+- [Decisões de arquitetura](#decisões-de-arquitetura)
+- [Scripts](#scripts)
+- [Testes](#testes)
+- [O que ainda não existe](#o-que-ainda-não-existe)
 
-## O que a aplicação faz
+## Responsabilidades
 
-O Gym Progress Tracker centraliza o planejamento semanal de treinos:
+O frontend renderiza a interface, conduz autenticação no navegador, mantém e renova a sessão do Supabase Auth, envia o access token em toda chamada privada, consome exclusivamente a API versionada, administra cache de leitura e sincronização offline, e oferece a experiência instalável.
 
-1. O visitante acessa a landing page e cria uma conta ou entra com uma conta existente.
-2. O Supabase Auth mantém a sessão no navegador.
-3. As páginas autenticadas consultam o Supabase diretamente, com isolamento por usuário garantido por Row Level Security (RLS).
-4. O usuário configura dados físicos, objetivo, experiência e preferências de treino.
-5. Na biblioteca, ele consulta exercícios globais e cria exercícios próprios.
-6. Em **Treinar**, cria e duplica fichas, associa um dia da semana e adiciona exercícios com séries, faixa de repetições e descanso.
-7. **Início** mostra o treino associado ao dia atual e **Agenda** apresenta a distribuição semanal.
-8. Em **Perfil**, o usuário pode exportar seus dados em JSON ou excluir definitivamente a conta.
+O frontend **não** acessa tabelas do PostgreSQL, **não** executa regras críticas de autorização, **não** possui `DATABASE_URL`, chave de service role ou credenciais do Prisma, e **não** decide se um usuário pode acessar dados de outro. Essas decisões são sempre do `gym-service`.
 
-## Tecnologias
+## Stack
 
-| Área                     | Tecnologia            | Uso no projeto                                                      |
-| ------------------------ | --------------------- | ------------------------------------------------------------------- |
-| Interface                | React 19 + TypeScript | Componentes e regras da UI                                          |
-| Aplicação fullstack      | TanStack Start        | Rotas, SSR, server functions e middlewares                          |
-| Roteamento               | TanStack Router       | Rotas baseadas em arquivos e rotas protegidas                       |
-| Dados remotos            | TanStack Query        | Cache, carregamento e invalidação de consultas                      |
-| Build e desenvolvimento  | Vite 8                | Servidor local e build de produção                                  |
-| Estilos                  | Tailwind CSS 4        | Tema e layout mobile-first                                          |
-| Componentes              | shadcn/ui + Radix UI  | Componentes acessíveis reutilizáveis                                |
-| Backend                  | Supabase              | PostgreSQL, autenticação e RLS                                      |
-| Validação de formulários | React Hook Form + Zod | Dependências disponíveis para formulários tipados                   |
-| Gráficos                 | Recharts              | Preparado para a futura área de progresso                           |
-| Ícones                   | Lucide React          | Iconografia da interface                                            |
-| Deploy server-side       | Nitro                 | Saída do build, com alvo Cloudflare configurado pelo preset Lovable |
+| Área | Tecnologia |
+| --- | --- |
+| Runtime | Node.js 22 LTS, npm |
+| Framework | Next.js 15 (App Router) |
+| Interface | React 19, TypeScript strict |
+| Estilos | Tailwind CSS 4 |
+| Ícones | Lucide React |
+| Estado remoto | TanStack Query 5 |
+| Cliente de API | `openapi-fetch` + `openapi-typescript` |
+| Toasts | Sonner |
+| Validação | Zod |
+| Testes | Vitest + Testing Library, Playwright |
+| Qualidade | ESLint, Prettier, TypeScript strict |
+| Deploy | Vercel |
 
-## Arquitetura
-
-A aplicação usa TanStack Start. O navegador renderiza a interface React, enquanto o servidor trata SSR, middlewares e funções que precisam permanecer fora do bundle cliente.
-
-```text
-Navegador
-  ├─ TanStack Router (páginas e proteção de rotas)
-  ├─ TanStack Query (cache de consultas)
-  └─ Supabase Client
-       ├─ Auth (sessão persistida em localStorage)
-       └─ PostgreSQL (acesso limitado por RLS)
-
-TanStack Start / Nitro
-  ├─ middleware de erros e proteção CSRF
-  ├─ anexa o token do usuário às server functions
-  ├─ exportação LGPD usando a sessão autenticada
-  └─ exclusão de conta usando a service role apenas no servidor
-```
-
-### Decisões principais
-
-- **Rotas por arquivo:** cada arquivo em `src/routes` representa uma rota. `src/routeTree.gen.ts` é gerado automaticamente e não deve ser editado.
-- **Área autenticada:** `src/routes/_authenticated/route.tsx` valida o usuário antes de renderizar as páginas internas e aplica a navegação inferior.
-- **Acesso ao banco:** operações comuns usam a chave pública e dependem de RLS. A service role é usada somente no servidor para excluir usuários.
-- **SSR resiliente:** `src/server.ts`, `src/start.ts` e os componentes de erro tratam falhas inesperadas e retornam uma página HTML de erro em vez de JSON interno.
-- **Mobile-first:** o conteúdo autenticado usa largura máxima de celular e uma barra fixa com Início, Treinar, Agenda, Progresso e Perfil.
-
-## Rotas e fluxos
-
-| URL               | Acesso              | Responsabilidade                                                             |
-| ----------------- | ------------------- | ---------------------------------------------------------------------------- |
-| `/`               | Público             | Landing page; redireciona usuários autenticados para `/inicio`               |
-| `/auth`           | Público             | Login, cadastro, recuperação de senha e entrada com Google                   |
-| `/reset-password` | Link de recuperação | Definição de uma nova senha                                                  |
-| `/inicio`         | Autenticado         | Saudação, treino do dia e indicadores ainda estáticos                        |
-| `/treinar`        | Autenticado         | Listar, criar, duplicar e excluir treinos                                    |
-| `/treino/:id`     | Autenticado         | Editar treino, ordenar exercícios e configurar séries, repetições e descanso |
-| `/biblioteca`     | Autenticado         | Pesquisar/filtrar biblioteca e criar ou excluir exercícios próprios          |
-| `/agenda`         | Autenticado         | Visualizar o treino associado a cada dia da semana                           |
-| `/progresso`      | Autenticado         | Placeholder dos futuros indicadores e gráficos                               |
-| `/perfil`         | Autenticado         | Dados pessoais, preferências, logout, exportação e exclusão da conta         |
-
-## Modelo de dados e segurança
-
-As migrations ficam em `supabase/migrations` e criam quatro tabelas principais:
-
-| Tabela              | Finalidade                                  | Propriedade                                                  |
-| ------------------- | ------------------------------------------- | ------------------------------------------------------------ |
-| `profiles`          | Dados físicos, objetivo e preferências      | Um registro por usuário (`id = auth.users.id`)               |
-| `exercises`         | Biblioteca global e exercícios customizados | `user_id = NULL` para globais; UUID do usuário para próprios |
-| `workouts`          | Fichas de treino e dia da semana            | Sempre vinculada ao usuário                                  |
-| `workout_exercises` | Exercícios, ordem e metas de cada treino    | Vinculada ao treino e ao usuário                             |
-
-O banco também cria os enums `experience_level`, `training_goal` e `difficulty`, uma função para atualizar `updated_at`, um gatilho que cria o perfil após o cadastro e uma biblioteca inicial de exercícios.
-
-### Row Level Security
-
-O RLS está habilitado em todas as tabelas:
-
-- cada usuário só lê e altera seu próprio perfil e seus próprios treinos;
-- exercícios globais são somente leitura para usuários autenticados;
-- exercícios personalizados só podem ser alterados pelo proprietário;
-- a chave `SUPABASE_SERVICE_ROLE_KEY` ignora RLS e, por isso, deve existir **somente no ambiente do servidor**.
-
-Nunca adicione a service role a uma variável com prefixo `VITE_`, ao código-fonte ou ao controle de versão. Variáveis `VITE_*` são incorporadas ao bundle enviado ao navegador.
+Supabase Auth (`@supabase/supabase-js`, `@supabase/ssr`) entra em M2. Recharts entra em M5. Serwist e Dexie entram em M6. React Hook Form entra quando existir o primeiro formulário real, em M2 — adicioná-lo agora seria uma dependência sem uso.
 
 ## Pré-requisitos
 
-Para usar um projeto Supabase hospedado:
-
-- Node.js 22 ou versão LTS compatível;
-- npm 10 ou superior;
-- uma conta e um projeto no Supabase;
-- Git, apenas para clonar e versionar o projeto.
-
-Para executar também o Supabase localmente:
-
-- Docker Desktop (ou outro runtime Docker compatível) em execução;
-- Supabase CLI. É possível usá-la sem instalação global por meio de `npx supabase`.
-
-O repositório contém `package-lock.json` e `bun.lock`. Este guia usa **npm** para garantir uma instalação reproduzível com `npm ci`. Use apenas um gerenciador por instalação para evitar divergência entre lockfiles.
-
-## Configuração rápida com um projeto Supabase remoto
-
-Esta é a opção mais simples para executar toda a aplicação, inclusive exclusão de conta.
-
-### 1. Clone e instale as dependências
-
-```bash
-git clone <URL_DO_REPOSITORIO>
-cd gym-mobile
-npm ci
-```
-
-### 2. Crie ou selecione um projeto Supabase
-
-No painel do Supabase, copie:
-
-- **Project URL**;
-- **Publishable key** (ou a chave `anon` legada, se o projeto ainda usar o formato antigo);
-- **Secret key/service role key**, usada exclusivamente no servidor.
-
-### 3. Aplique o schema
-
-Faça login na CLI, vincule a pasta ao projeto e envie as migrations:
-
-```bash
-npx supabase login
-npx supabase link --project-ref <PROJECT_REF>
-npx supabase db push
-```
-
-O `PROJECT_REF` é o identificador do projeto exibido no painel e também aparece na URL do projeto. O arquivo `supabase/config.toml` já contém a referência usada pela instância original; altere-a ou informe a referência correta durante o vínculo se estiver usando outro projeto.
-
-> Não execute as migrations repetidamente pelo SQL Editor: elas contêm criação de tipos e tabelas e foram feitas para serem controladas pela CLI.
-
-### 4. Configure as variáveis de ambiente
-
-Crie um arquivo `.env.local` na raiz. Esse nome corresponde à regra `*.local` do `.gitignore`. Nunca faça commit de arquivos de ambiente ou segredos. Se já existir um `.env` fornecido pelo Lovable, preserve-o e confirme no Git que ele não está sendo rastreado antes de adicionar credenciais.
-
-```dotenv
-# Servidor TanStack Start / Nitro
-SUPABASE_PROJECT_ID="seu-project-ref"
-SUPABASE_URL="https://seu-project-ref.supabase.co"
-SUPABASE_PUBLISHABLE_KEY="sb_publishable_..."
-SUPABASE_SERVICE_ROLE_KEY="sb_secret_..."
-
-# Bundle do navegador (somente valores públicos)
-VITE_SUPABASE_PROJECT_ID="seu-project-ref"
-VITE_SUPABASE_URL="https://seu-project-ref.supabase.co"
-VITE_SUPABASE_PUBLISHABLE_KEY="sb_publishable_..."
-```
-
-As versões sem `VITE_` são lidas pelo SSR e pelos middlewares. As versões com `VITE_` são lidas no navegador. A chave pública pode aparecer nos dois contextos; a service role, nunca.
-
-### 5. Configure as URLs de autenticação
-
-No painel do Supabase, em **Authentication > URL Configuration**:
-
-- defina a URL local como `http://localhost:3000` (ou a porta exibida pelo Vite);
-- adicione `http://localhost:3000/**` à lista de Redirect URLs;
-- em produção, adicione também o domínio final e sua rota `/reset-password`.
-
-Se o servidor escolher outra porta, use exatamente a origem mostrada no terminal.
-
-### 6. Execute
-
-```bash
-npm run dev
-```
-
-Abra a URL exibida no terminal, crie uma conta e siga o roteiro em [Teste manual funcional](#teste-manual-funcional).
-
-## Configuração com Supabase local
-
-Esta opção cria banco e autenticação em containers Docker.
-
-### 1. Instale dependências e inicie os serviços
-
-```bash
-npm ci
-npx supabase start
-```
-
-Ao iniciar, a CLI aplica as migrations e imprime a API URL, a publishable/anon key e a secret/service role key. Para reaplicar todo o banco desde o zero:
-
-```bash
-npx supabase db reset
-```
-
-> `db reset` apaga os dados do banco Supabase local. Não use esse comando contra um ambiente remoto ou com dados que precisem ser preservados.
-
-### 2. Monte `.env.local`
-
-Consulte novamente as credenciais locais quando necessário:
-
-```bash
-npx supabase status
-```
-
-Copie os valores para `.env.local`:
-
-```dotenv
-SUPABASE_PROJECT_ID="local"
-SUPABASE_URL="http://127.0.0.1:54321"
-SUPABASE_PUBLISHABLE_KEY="<PUBLISHABLE_OU_ANON_KEY_LOCAL>"
-SUPABASE_SERVICE_ROLE_KEY="<SECRET_OU_SERVICE_ROLE_KEY_LOCAL>"
-
-VITE_SUPABASE_PROJECT_ID="local"
-VITE_SUPABASE_URL="http://127.0.0.1:54321"
-VITE_SUPABASE_PUBLISHABLE_KEY="<MESMA_CHAVE_PUBLICA_LOCAL>"
-```
-
-Os nomes exatos exibidos pela CLI podem variar entre o formato atual (`publishable`/`secret`) e o legado (`anon`/`service_role`). O cliente deste projeto aceita ambos.
-
-### 3. Inicie a aplicação
-
-```bash
-npm run dev
-```
-
-E-mails de confirmação e recuperação enviados pelo Supabase local podem ser abertos no Mailpit, cuja URL aparece em `npx supabase status` (normalmente `http://127.0.0.1:54324`).
-
-Para encerrar os containers:
-
-```bash
-npx supabase stop
-```
-
-## Autenticação
-
-### E-mail e senha
-
-Login, cadastro, confirmação de e-mail e recuperação usam Supabase Auth. Em um ambiente de desenvolvimento, escolha uma destas estratégias:
-
-- desative temporariamente a confirmação de e-mail no projeto de teste; ou
-- mantenha a confirmação ativa e use o e-mail recebido (em ambiente local, abra-o no Mailpit).
-
-O link de recuperação deve voltar para `/reset-password` na mesma origem da aplicação.
-
-### Google
-
-O botão **Continuar com Google** usa `@lovable.dev/cloud-auth-js`, integrado ao ambiente Lovable. Para funcionar fora do projeto Lovable original, o provedor OAuth precisa estar habilitado e corretamente configurado no ambiente de autenticação usado. O fluxo de e-mail e senha não depende do botão Google e é o caminho recomendado para validar uma instalação local nova.
+- Node.js 22 (`node -v` deve mostrar `v22.x`)
+- npm 10 ou superior
+- O **`gym-service` rodando** para que a página de status mostre algo além de falha de conexão
 
 ## Como executar
 
-### Desenvolvimento
-
 ```bash
+npm ci
 npm run dev
 ```
 
-O Vite inicia o servidor TanStack Start com recarregamento automático.
+Abra `http://localhost:3000`. Nenhuma credencial é necessária nesta fase.
 
-### Build de produção
-
-```bash
-npm run build
-```
-
-A saída server-side é criada em `.output`. O preset Lovable configura Nitro com alvo Cloudflare por padrão, portanto o deploy precisa fornecer no ambiente de execução todas as variáveis sem `VITE_`; as variáveis `VITE_*` devem existir no momento do build.
-
-### Pré-visualização
+Para ver a integração com o backend funcionando, suba os dois:
 
 ```bash
-npm run preview
+# terminal 1
+cd ../gym-service && npm run start:dev
+
+# terminal 2
+cd ../gym-mobile && npm run dev
 ```
 
-Use a URL indicada pelo comando. O preview só é confiável depois de um build bem-sucedido e não substitui a validação no ambiente final de deploy.
+Depois acesse `http://localhost:3000/status`. Ela consulta o `gym-service` de verdade e mostra versão, tempo no ar e o estado de cada dependência. Se a API estiver fora, a página informa a falha — não existe estado "online" de mentira.
 
-## Como validar e testar
+## Configuração
 
-O projeto ainda não possui Vitest, Playwright ou outra suíte automatizada configurada. Atualmente, a validação técnica é feita com lint, build e teste manual.
+Copie `.env.example` para `.env.local` e preencha. Arquivos `.env*` reais são ignorados pelo Git.
 
-### Validação estática e de produção
+### Toda variável `NEXT_PUBLIC_*` é pública
+
+Ela é incorporada ao bundle enviado ao navegador e fica visível para qualquer usuário. Nunca coloque neste repositório:
+
+- `SUPABASE_SECRET_KEY` ou service role key
+- `DATABASE_URL` / `DIRECT_URL`
+- `VAPID_PRIVATE_KEY`
+
+Esses segredos pertencem exclusivamente ao `gym-service`. Nenhuma variável do `gym-mobile-lovable` deve ser copiada para cá.
+
+### As variáveis são lidas no build, não no runtime
+
+`NEXT_PUBLIC_API_URL` precisa existir **no momento do `npm run build`**. Trocá-la depois, no ambiente de execução, não muda o bundle já gerado — a aplicação continuaria chamando o endereço antigo.
+
+Consequência prática na Vercel: a variável tem de estar configurada no projeto **antes** do deploy, e mudar de ambiente exige novo build. Preview e produção precisam de valores próprios.
+
+### Validação
+
+A configuração é validada no import de `@/lib/config/env`, e não no primeiro uso. Um valor inválido falha no build ou no start, com nome do campo e motivo — nunca o valor recebido.
+
+## Rotas
+
+| Rota | Acesso | Estado |
+| --- | --- | --- |
+| `/` | Público | Apresentação, declarando o estágio real do projeto |
+| `/status` | Público | Diagnóstico de conexão com o `gym-service` |
+| `/inicio` | Autenticado¹ | Navegável; painel entra em M2 |
+| `/treinar` | Autenticado¹ | Navegável; fichas e execução entram em M3/M4 |
+| `/agenda` | Autenticado¹ | Navegável; agenda entra em M3 |
+| `/progresso` | Autenticado¹ | Navegável; gráficos entram em M5 |
+| `/perfil` | Autenticado¹ | Navegável; perfil entra em M3 |
+
+¹ **Estas rotas ainda não estão protegidas.** A verificação de sessão entra em M2, junto do Supabase Auth — sem mecanismo de sessão, um guardião redirecionaria todo acesso e tornaria a navegação impossível de validar nesta fase.
+
+Isso é aceitável hoje por um motivo verificável: **nenhuma dessas telas lê ou exibe dado de usuário.** Elas existem para validar navegação, alvos de toque e safe areas. No momento em que a primeira consulta à API entrar ali, a proteção de rota precisa existir antes.
+
+`/status` é público de propósito: é usada justamente quando a autenticação não funciona, e exigir login para diagnosticar seria circular. Ela não expõe dado de usuário — apenas versão, tempo no ar e quais dependências estão configuradas.
+
+A navegação principal tem cinco áreas: Início, Treinar, Agenda, Progresso e Perfil. Biblioteca e gerenciamento de fichas serão acessados a partir de Treinar — seis ou mais alvos em 360 px de largura deixariam cada um abaixo do mínimo de 44 px.
+
+## Como os tipos da API são gerados
+
+O `gym-service` é o proprietário do contrato. Nenhum tipo de domínio é escrito à mão neste repositório.
 
 ```bash
-npm run lint
-npm run build
+# no gym-service, primeiro
+npm run openapi:emit
+
+# aqui
+npm run api:types          # regenera src/lib/api/generated/types.ts
+npm run api:types:check    # falha se estiver defasado
 ```
 
-O lint inclui ESLint, regras de hooks React e verificação de formatação pelo Prettier. O TypeScript é verificado durante o fluxo de build; não há um script `test` ou `typecheck` separado no momento.
+A origem é resolvida nesta ordem: `--from=<caminho-ou-url>`, `GYM_SERVICE_OPENAPI`, e por fim o repositório irmão `../gym-service/openapi/openapi.json`. O repositório irmão vem antes da rede de propósito: durante o desenvolvimento, o contrato recém-gerado no backend deve valer imediatamente, sem depender de a API estar no ar.
 
-### Teste manual funcional
+`src/lib/api/generated/` é ignorado pelo ESLint e pelo Prettier. Editá-lo à mão quebraria a única garantia que ele oferece: que os tipos usados aqui são exatamente os que a API publica.
 
-Use um projeto Supabase de desenvolvimento, sem dados importantes:
+Se `api:types:check` falhar, **revise o diff**. Se um campo existente mudou ou desapareceu, a alteração é incompatível e o backend compatível precisa estar publicado antes deste frontend.
 
-1. Abra `/` e confirme que a landing page carrega.
-2. Acesse `/auth`, crie uma conta com e-mail e senha e conclua a confirmação, se habilitada.
-3. Confirme o redirecionamento para `/inicio` e a criação automática do perfil.
-4. Em **Perfil**, preencha nome, altura, peso, objetivo, nível e frequência; salve e recarregue a página.
-5. Em **Biblioteca**, confirme que os exercícios globais da migration aparecem.
-6. Crie um exercício personalizado, pesquise por ele e confirme que é possível excluí-lo.
-7. Em **Treinar**, crie um treino, associe um dia e abra a edição.
-8. Adicione exercícios, altere séries/repetições/descanso e teste a ordenação.
-9. Duplique o treino e confirme que os exercícios e configurações também foram copiados.
-10. Confira o treino na **Agenda** e, se ele estiver associado ao dia atual, em **Início**.
-11. Saia e entre novamente para confirmar a persistência da sessão e dos dados.
-12. Solicite recuperação de senha e valide o link em `/reset-password`.
-13. Em **Perfil**, exporte os dados e confira o arquivo `meus-dados-treino.json`.
-14. Com uma conta descartável e `SUPABASE_SERVICE_ROLE_KEY` configurada, teste **Excluir minha conta** e confirme que o login deixa de funcionar.
-15. Abra uma rota autenticada sem sessão e confirme o redirecionamento para `/auth`.
+## Tratamento de erros
 
-### Verificações de segurança recomendadas
+Toda falha de chamada à API vira um `ApiError`, tratado em um só lugar por middleware do `openapi-fetch`. Erros de rede também passam por ali, para que a interface lide com uma única classe de falha.
 
-- crie dois usuários e confirme que um não vê nem altera treinos/exercícios privados do outro;
-- procure por `SUPABASE_SERVICE_ROLE_KEY` nos arquivos gerados do cliente e confirme que o valor não foi incorporado;
-- não execute o teste de exclusão em uma conta real;
-- teste exportação e exclusão apenas em HTTPS no ambiente de produção.
+### O campo estável é `code`, não `detail`
 
-## Scripts
+O backend responde em `application/problem+json` (RFC 9457). O cliente decide comportamento pelo `code`; `detail` é texto livre que pode ser reescrito a qualquer momento. Ramificar em `detail` quebraria o app quando alguém melhorasse uma mensagem.
 
-| Comando             | Descrição                                   |
-| ------------------- | ------------------------------------------- |
-| `npm run dev`       | Inicia o ambiente de desenvolvimento        |
-| `npm run build`     | Gera o build de produção                    |
-| `npm run build:dev` | Gera build usando o modo Vite `development` |
-| `npm run preview`   | Pré-visualiza o build localmente            |
-| `npm run lint`      | Executa ESLint e a validação do Prettier    |
-| `npm run format`    | Formata os arquivos com Prettier            |
+`title` também não é usado como mensagem ao usuário: pela RFC ele é o rótulo do *tipo* de problema, idêntico em toda ocorrência. "Falha interna" descreve a categoria, mas não diz o que fazer — então o fallback local, escrito como orientação, é preferido.
+
+### `401` e `403` são tratados de forma diferente
+
+`401` significa sessão ausente ou expirada e exige renovar ou voltar ao login. `403` **não** dispara logout: deslogar alguém por tentar uma ação sem permissão faria perder o treino em andamento por um clique indevido.
+
+### O que é repetido automaticamente
+
+Rede, `5xx` e `429` são transitórios e valem repetir, com backoff exponencial até 15 s e no máximo 3 tentativas. `4xx` não melhora sem corrigir o pedido — insistir só gasta bateria e cota.
+
+Mutações **não** são repetidas automaticamente. Sem `Idempotency-Key`, que entra em M6, repetir um POST poderia duplicar uma série registrada.
+
+### Nada interno chega à interface
+
+Mensagens de rede do navegador citam host e porta; elas vão para `cause` e nunca para a mensagem exibida. O corpo de erro do backend já vem em pt-BR e sanitizado.
+
+Uma resposta que não seja JSON válido — HTML de um proxy, corpo truncado — não lança `SyntaxError`: o usuário recebe uma mensagem útil.
+
+### Identificador de requisição
+
+Toda chamada envia `x-request-id`, e o valor aparece nas páginas de erro. É o único elo entre o que o usuário viu e a linha de log do servidor.
+
+## Acessibilidade
+
+O `gym-mobile-lovable` serviu de referência visual, mas várias limitações dele foram corrigidas aqui:
+
+| Correção | Por quê |
+| --- | --- |
+| `lang="pt-BR"` | Define pronúncia do leitor de tela e hifenização. O protótipo declarava inglês. |
+| Zoom liberado (`maximum-scale=5`) | Bloquear zoom impede quem precisa ampliar para ler de usar o app. |
+| `viewport-fit=cover` + safe areas | Sem isso a navegação inferior fica sob a barra de gestos do iPhone. |
+| Alvos de toque de 44 px | Utilitário `tap`, verificado em teste e2e. |
+| Foco visível | `:focus-visible` com anel de 2 px; remover outline sem substituto inutiliza o teclado. |
+| `prefers-reduced-motion` | Animações reduzidas a 0.01 ms, sem `animation: none` para não quebrar `transitionend`. |
+| `text-base` (16 px) em inputs | Fontes menores fazem o Safari aplicar zoom automático que não é revertido. |
+| Link "pular para o conteúdo" | Evita percorrer a navegação em cada página, no teclado. |
+| `aria-current` na navegação | Cor sozinha não comunica o item ativo. |
+| Cor **e** texto em badges | Cerca de 8% dos homens não distinguem verde de vermelho. |
+| `noindex, nofollow` | A aplicação é privada. |
 
 ## Estrutura de pastas
 
 ```text
 gym-mobile/
-├─ public/
-│  ├─ icons/                  # Ícone da aplicação
-│  ├─ manifest.webmanifest    # Metadados da PWA
-│  └─ robots.txt
 ├─ src/
+│  ├─ app/
+│  │  ├─ (public)/            # Landing e status
+│  │  ├─ (protected)/         # Cinco áreas da navegação principal
+│  │  ├─ layout.tsx           # pt-BR, viewport, providers
+│  │  ├─ error.tsx            # Fronteira de erro das rotas
+│  │  ├─ global-error.tsx     # Falha do próprio layout raiz
+│  │  └─ not-found.tsx
 │  ├─ components/
-│  │  ├─ ui/                  # Componentes shadcn/ui e Radix
-│  │  └─ app-shell.tsx        # Layout e navegação da área autenticada
-│  ├─ integrations/
-│  │  ├─ lovable/             # Integração OAuth do Lovable
-│  │  └─ supabase/            # Clientes, tipos e middlewares de autenticação
-│  ├─ lib/                    # Sessão, banco, LGPD e tratamento de erros
-│  ├─ routes/                 # Rotas baseadas em arquivos
-│  ├─ routeTree.gen.ts        # Arquivo gerado; não editar manualmente
-│  ├─ router.tsx              # Configuração do TanStack Router/Query
-│  ├─ server.ts               # Entrada SSR protegida contra erros catastróficos
-│  ├─ start.ts                # Middlewares globais, autenticação e CSRF
-│  └─ styles.css              # Tema global Tailwind
-├─ supabase/
-│  ├─ migrations/             # Schema, RLS, gatilhos e seed da biblioteca
-│  └─ config.toml             # Configuração da Supabase CLI
-├─ eslint.config.js
-├─ package.json
-├─ tsconfig.json
-└─ vite.config.ts
+│  │  ├─ ui/                  # button, card, input, label, badge, skeleton
+│  │  ├─ navigation/          # bottom-nav, page-header
+│  │  └─ feedback/            # toaster, estados de vazio/erro/offline
+│  ├─ features/
+│  │  └─ system/              # Diagnóstico da API
+│  ├─ lib/
+│  │  ├─ api/                 # Cliente, Problem Details, health, tipos gerados
+│  │  ├─ config/              # Validação de ambiente
+│  │  ├─ query/               # QueryClient e provider
+│  │  └─ utils.ts
+│  └─ styles/globals.css      # Tokens do tema em oklch
+├─ scripts/
+│  └─ generate-api-types.mjs
+├─ tests/e2e/
+└─ .env.example
 ```
 
-## Funcionalidades e limitações
+## Decisões de arquitetura
 
-### Implementado
+### O QueryClient é criado em `useState`, não em módulo
 
-- landing page responsiva;
-- cadastro, login, logout e recuperação de senha;
-- botão de OAuth Google via Lovable Cloud Auth;
-- proteção de rotas e sessão persistida;
-- perfil com dados físicos, objetivo e preferências;
-- biblioteca inicial e exercícios personalizados;
-- criação, edição, duplicação e exclusão de treinos;
-- associação de exercícios, séries-alvo, faixa de repetições, descanso e ordenação;
-- agenda semanal e treino do dia;
-- exportação de dados e exclusão de conta;
-- RLS, middleware de autenticação, CSRF para server functions e páginas de erro;
-- manifesto e ícone para experiência instalável/mobile.
+Em SSR, um cliente de módulo seria compartilhado entre requisições de usuários diferentes — dado privado de um apareceria para outro. `useState` garante uma instância por árvore de renderização.
 
-### Ainda não implementado
+### O cliente de API não conhece o Supabase
 
-- execução de uma sessão e registro das séries realizadas;
-- histórico de treinos, cargas e volume;
-- cálculo de progressão e recordes pessoais;
-- estatísticas e gráficos reais na página Progresso;
-- cronômetro de descanso;
-- fotos e medidas corporais históricas;
-- notificações push;
-- Service Worker, cache offline, IndexedDB e sincronização;
-- testes unitários, de integração e end-to-end automatizados.
+O token vem de um `TokenProvider` registrado em M2. Assim o cliente HTTP permanece testável sem sessão, e uma troca de provedor de identidade não o alcança.
 
-Embora exista um `manifest.webmanifest`, a aplicação ainda não oferece suporte offline. Não trate o estado atual como uma PWA offline completa.
+O token é obtido a cada chamada, e não guardado, porque o Supabase renova a sessão em segundo plano — um valor capturado uma vez começaria a falhar com `401` depois de uma hora.
 
-## Solução de problemas
+### `/health` e `/ready` não passam pelo cliente tipado
 
-### `Missing Supabase environment variable(s)`
+Eles ficam **fora** de `/api/v1`: são contrato de plataforma, não de negócio, e não devem migrar quando surgir uma `/api/v2`. Também não exigem token.
 
-Confirme que `.env.local` está na raiz, reinicie `npm run dev` após qualquer alteração e verifique se os pares servidor/cliente foram preenchidos:
+`/ready` responde `503` quando não está pronto, e esse corpo ainda interessa — ele diz **qual** dependência falhou. Tratá-lo como exceção descartaria o diagnóstico.
 
-- `SUPABASE_URL` e `VITE_SUPABASE_URL`;
-- `SUPABASE_PUBLISHABLE_KEY` e `VITE_SUPABASE_PUBLISHABLE_KEY`.
+### CORS sem credenciais
 
-Para excluir conta, também é obrigatória `SUPABASE_SERVICE_ROLE_KEY` no servidor.
+A API autentica por `Authorization: Bearer`. Os cookies de sessão do Supabase pertencem à origem do Next.js, nunca à origem da API, então `credentials: 'omit'`.
 
-### Login funciona, mas consultas retornam vazio ou erro
+### CSP ficou para M7
 
-Execute `npx supabase db push` no projeto remoto ou `npx supabase db reset` no ambiente local. Sem as migrations, tabelas, políticas e o perfil automático não existem.
+O Next injeta scripts inline no bootstrap, então uma CSP útil exige nonce por requisição — o que força renderização dinâmica em toda página e conflita com o shell estático que a PWA precisa. A alternativa preguiçosa, `script-src 'unsafe-inline'`, daria aparência de proteção sem nenhuma. Os outros cabeçalhos de segurança já estão configurados e verificados em teste.
 
-### Cadastro não entra imediatamente
+### Tema dark-first em `:root`
 
-Provavelmente a confirmação por e-mail está ativa. Confirme o endereço antes de entrar. No Supabase local, abra o Mailpit informado por `npx supabase status`.
+Por decisão de produto, não por preferência do sistema: academia costuma ter iluminação ruim e a tela fica em uso durante o treino. Um tema claro pode ser adicionado depois com `.light`, sem reescrever tokens.
 
-### Link de recuperação abre uma URL inválida
+Todas as cores usam `oklch` porque ele é perceptualmente uniforme — ajustar o L de um token muda o contraste de forma previsível, o que não acontece com `hsl`.
 
-Inclua a origem local e de produção em **Authentication > URL Configuration > Redirect URLs** no Supabase. Depois solicite um novo e-mail; links antigos podem continuar apontando para a configuração anterior.
+### ESLint escopado por extensão
 
-### Exclusão de conta falha
+O `eslint-config-next` instala o próprio parser, que não repassa `parserOptions.project`. Aplicado a arquivos `.mjs`, fazia as regras que dependem de tipo falharem ao carregar. Restringir cada bloco ao que ele cobre resolve a raiz em vez de desligar as regras.
 
-Verifique `SUPABASE_SERVICE_ROLE_KEY`, reinicie o servidor e confirme que a chave pertence ao mesmo projeto indicado por `SUPABASE_URL`. Nunca use a chave pública no lugar da service role.
+Como efeito colateral, `next build` emite *"The Next.js plugin was not detected in your ESLint configuration"* — é a heurística de detecção do Next não achar o plugin dentro de um bloco escopado. As regras **rodam**: verificado provocando `@next/next/no-img-element`, que dispara e, como `lint` usa `--max-warnings=0`, falha a verificação.
 
-### Google OAuth não redireciona corretamente
+### `outputFileTracingRoot` fixado
 
-O botão depende do Lovable Cloud Auth e das URLs autorizadas do provedor. Para uma instalação independente, valide primeiro e-mail/senha ou configure o provedor Google no ambiente conectado ao projeto.
+Sem isso o Next sobe a árvore procurando um lockfile e pode escolher um diretório acima do repositório, mudando quais arquivos entram no bundle de deploy.
 
-### Porta diferente de `3000`
+## Scripts
 
-Use a porta exibida pelo Vite e atualize as URLs de redirecionamento no Supabase. Não presuma uma porta fixa se ela já estiver ocupada.
+| Comando | Descrição |
+| --- | --- |
+| `npm run dev` | Desenvolvimento |
+| `npm run build` | Build de produção |
+| `npm start` | Executa o build |
+| `npm run lint` | ESLint, zero warnings tolerados |
+| `npm run format` | Prettier |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Testes unitários e de componente |
+| `npm run test:e2e` | Playwright (exige `npx playwright install chromium webkit`) |
+| `npm run api:types` | Regenera os tipos a partir do contrato |
+| `npm run api:types:check` | Verifica se os tipos estão sincronizados |
+| `npm run verify` | Formato + lint + typecheck + testes + build |
 
-## Lovable
+## Testes
 
-Este projeto está conectado ao [Lovable](https://lovable.dev). Alterações enviadas para a branch conectada são sincronizadas com o editor. Não reescreva o histórico já publicado com force push, rebase, amend ou squash.
+**Unitários e de componente (Vitest):** 31 testes, executados e passando. Cobrem leitura de Problem Details, classificação de erros, política de retry, cliente de health e acessibilidade da navegação.
 
-O projeto original pode ser aberto no [editor Lovable](https://lovable.dev/projects/134567a1-887d-420c-b098-943bd37e0be1).
+**E2E (Playwright):** 36 testes (12 × 3 perfis), executados e passando.
+
+```bash
+npx playwright install chromium webkit   # uma vez
+npm run test:e2e
+```
+
+Eles rodam contra `build` + `start`, não contra o servidor de desenvolvimento: o objetivo é validar o que vai ao ar. Os perfis são Pixel 7, iPhone 13 e uma largura de 360 px, refletindo o suporte primário definido no plano. WebKit importa especificamente porque iPhone/Safari se comporta de forma diferente em zoom e safe areas.
+
+O paralelismo está limitado a 3 workers. O padrão do Playwright derrubava **todos** os testes do WebKit no Windows, enquanto os mesmos passavam com um worker — contenção no lançamento do navegador, não falha da aplicação. Ao aumentar esse número, verifique o WebKit especificamente: ele é o que quebra primeiro.
+
+Estes testes já pagaram por si: encontraram dois defeitos reais que o resto da verificação não pegou. As páginas de erro e 404 não tinham `h1` nenhum, e a página de status levava mais de 7 segundos para informar que a API caiu, porque a política global de retry se aplicava a uma consulta de diagnóstico.
+
+Simular respostas dentro de um teste é legítimo e é o próprio ponto do teste. **Nenhum dado simulado existe no código que vai ao ar.**
+
+## O que ainda não existe
+
+Nada abaixo está implementado.
+
+- Supabase Auth, login, convite, recuperação e redefinição de senha
+- Proteção de rotas e renovação de sessão
+- Perfil, biblioteca de exercícios, fichas, agenda
+- Execução de treino, registro de séries, cronômetro
+- Histórico, gráficos, recordes, medidas, fotos
+- Manifest, Service Worker, IndexedDB, outbox, sincronização offline
+- Notificações push
+- Content Security Policy
+- CI e configuração de deploy na Vercel
+
+As telas de `/inicio`, `/treinar`, `/agenda`, `/progresso` e `/perfil` declaram isso na própria interface. Elas não exibem dados de exemplo: preencher a tela com valores inventados daria a impressão de funcionalidade pronta e tornaria impossível saber, olhando o app, o que de fato funciona.

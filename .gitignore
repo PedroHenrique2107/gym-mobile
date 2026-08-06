@@ -1,0 +1,44 @@
+# Dependencias
+node_modules/
+
+# Build do Next
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Testes
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# Ambiente: nenhum valor real entra no controle de versao.
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editores e sistema
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Caches de ferramentas
+.eslintcache
+.cache/
+.tmp/
+tmp/
