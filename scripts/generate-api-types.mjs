@@ -69,7 +69,12 @@ async function main() {
       fail('src/lib/api/generated/types.ts nao existe. Rode `npm run api:types`.');
     }
 
-    if (current !== generated) {
+    // Comparacao insensivel a fim de linha. O `.gitattributes` normaliza para
+    // LF, mas depender disso deixaria a verificacao refem da configuracao de
+    // quem clonou: com `core.autocrlf=true` e sem o atributo, o arquivo chega
+    // em CRLF e a comparacao byte a byte acusaria diferenca com conteudo
+    // identico — falhando em todo clone novo em Windows, inclusive no CI.
+    if (normalizeEol(current) !== normalizeEol(generated)) {
       fail(
         [
           'Os tipos gerados estao defasados em relacao ao contrato do gym-service.',
@@ -126,6 +131,11 @@ async function loadDocument(source) {
 
 function describeSource(source) {
   return /^https?:\/\//.test(source) ? source : source.replace(/\\/g, '/');
+}
+
+/** Reduz CRLF e CR isolado a LF, para comparar conteudo e nao codificacao. */
+function normalizeEol(text) {
+  return text.replace(/\r\n?/g, '\n');
 }
 
 function fail(message) {

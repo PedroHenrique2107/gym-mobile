@@ -1,0 +1,32 @@
+# Normaliza fim de linha para LF na árvore de trabalho, em qualquer sistema.
+#
+# Sem isto, o Git no Windows converte para CRLF no checkout por causa de
+# `core.autocrlf=true`. Isso quebra os scripts que comparam bytes de arquivos
+# gerados — `api:types:check` falharia em todo clone novo em Windows, inclusive
+# no CI, mesmo com o conteúdo idêntico. Também elimina diffs falsos em máquinas
+# com sistemas diferentes.
+* text=auto eol=lf
+
+# Binários: nenhuma conversão, nunca.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.pdf binary
+*.mp4 binary
+*.webm binary
+
+# Lockfile: LF explícito e sem merge manual — regenere em vez de resolver.
+package-lock.json text eol=lf merge=binary
+
+# Arquivo gerado a partir do contrato do gym-service. Marcado para o GitHub
+# colapsar no diff e não contar como código escrito à mão.
+src/lib/api/generated/** linguist-generated=true
