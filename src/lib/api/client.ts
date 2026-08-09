@@ -5,7 +5,15 @@ import { env } from '@/lib/config/env';
 import type { paths } from './generated/types';
 import { ApiError, toApiError, toNetworkError } from './problem';
 
-/** Prefixo obrigatorio de todas as rotas de negocio. */
+/**
+ * Prefixo das rotas de negocio.
+ *
+ * Exportado para referencia, mas **nao** entra no `baseUrl`. O contrato publica
+ * os caminhos completos (`/api/v1/me`), e dividir o prefixo entre `baseUrl` e o
+ * argumento faria o TypeScript nao casar `'/me'` com nenhuma chave de `paths` —
+ * caindo numa uniao de todas as rotas. O sintoma era um erro apontando para o
+ * schema errado, que nao sugeria a causa.
+ */
 export const API_BASE_PATH = '/api/v1';
 
 /**
@@ -17,10 +25,81 @@ export const API_BASE_PATH = '/api/v1';
  */
 export type TokenProvider = () => Promise<string | null>;
 
+/**
+ * Renova a sessão. Devolve o token novo, ou `null` se não foi possível.
+ *
+ * Registrado em M2 junto do provedor de token. Mantê-lo separado permite que o
+ * cliente decida **quando** renovar sem saber **como**.
+ */
+export type SessionRefresher = () => Promise<string | null>;
+
+/** Chamado quando a sessão é perdida de forma irrecuperável. */
+export type SessionExpiredHandler = () => void;
+
 let tokenProvider: TokenProvider | null = null;
+let sessionRefresher: SessionRefresher | null = null;
+let onSessionExpired: SessionExpiredHandler | null = null;
 
 export function setTokenProvider(provider: TokenProvider | null): void {
   tokenProvider = provider;
+}
+
+export function setSessionRefresher(refresher: SessionRefresher | null): void {
+  sessionRefresher = refresher;
+}
+
+export function setSessionExpiredHandler(handler: SessionExpiredHandler | null): void {
+  onSessionExpired = handler;
+}
+
+/** Marca uma requisição já repetida, para não entrar em laço. */
+const RETRIED_HEADER = 'x-gym-retried';
+
+/**
+ * `fetch` que renova a sessão uma vez e repete a requisição uma vez em `401`.
+ *
+ * O plano especifica exatamente isto, e os dois limites importam. Sem o limite
+ * de renovação, várias requisições paralelas recebendo `401` disparariam
+ * renovações simultâneas — e no Supabase uma renovação invalida a anterior, o
+ * que derrubaria a sessão que se tentava salvar. Sem o limite de repetição, um
+ * `401` persistente viraria laço infinito contra a API.
+ *
+ * `403` **não** entra aqui de propósito: falta de permissão não melhora com
+ * token novo, e o plano determina que `403` não dispare logout.
+ */
+async function fetchWithRefresh(input: Request): Promise<Response> {
+  const response = await fetch(input);
+
+  if (response.status !== 401 || input.headers.has(RETRIED_HEADER) || !sessionRefresher) {
+    return response;
+  }
+
+  const freshToken = await sessionRefresher();
+
+  if (!freshToken) {
+    // A renovação falhou: a sessão acabou de verdade. Avisar a aplicação é o
+    // que permite limpar o cache e voltar ao login em vez de deixar a interface
+    // repetindo chamadas que nunca vão funcionar.
+    onSessionExpired?.();
+    return response;
+  }
+
+  // `input` já foi consumido; a requisição precisa ser reconstruída.
+  const retried = new Request(input, {
+    headers: new Headers(input.headers),
+  });
+  retried.headers.set('authorization', `Bearer ${freshToken}`);
+  retried.headers.set(RETRIED_HEADER, '1');
+
+  const retryResponse = await fetch(retried);
+
+  if (retryResponse.status === 401) {
+    // Token novo e ainda recusado: o problema não é expiração. Pode ser conta
+    // desativada ou perfil removido — casos em que insistir não ajuda.
+    onSessionExpired?.();
+  }
+
+  return retryResponse;
 }
 
 /**
@@ -83,11 +162,16 @@ const errorMiddleware: Middleware = {
  * runtime na mao do usuario.
  */
 export const apiClient = createClient<paths>({
-  baseUrl: `${env.apiUrl}${API_BASE_PATH}`,
+  // Apenas a origem: os caminhos completos vem do contrato.
+  baseUrl: env.apiUrl,
   headers: { 'content-type': 'application/json' },
   // Nao envia cookies: a API autentica por Bearer, e os cookies de sessao do
   // Supabase pertencem a origem do Next.js.
   credentials: 'omit',
+  // Substitui o `fetch` global para poder renovar a sessao e repetir a
+  // requisicao em `401` — algo que o middleware do openapi-fetch nao permite,
+  // porque ele so observa a resposta e nao pode refazer a chamada.
+  fetch: fetchWithRefresh,
 });
 
 apiClient.use(authMiddleware);

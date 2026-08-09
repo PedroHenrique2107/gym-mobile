@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 
 import { Toaster } from '@/components/feedback/toaster';
+import { SessionProvider } from '@/lib/auth/session-provider';
 import { QueryProvider } from '@/lib/query/query-provider';
 
 import '@/styles/globals.css';
@@ -52,7 +53,9 @@ export default function RootLayout({ children }: { readonly children: React.Reac
           Pular para o conteudo
         </a>
 
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+          <SessionProvider>{children}</SessionProvider>
+        </QueryProvider>
         <Toaster />
       </body>
     </html>

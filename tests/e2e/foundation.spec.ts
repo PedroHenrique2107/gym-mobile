@@ -41,52 +41,97 @@ test.describe('Fundacao', () => {
   });
 });
 
-test.describe('Navegacao', () => {
-  test('as cinco areas principais sao alcancaveis', async ({ page }) => {
+test.describe('Protecao de rotas', () => {
+  test('rota privada redireciona para o login', async ({ page }) => {
+    // A divida da fase M1 fechada: antes estas rotas eram publicas. O
+    // redirecionamento acontece no middleware, antes de qualquer HTML ser
+    // enviado — proteger no cliente deixaria o conteudo aparecer por um instante.
     await page.goto('/inicio');
 
-    const areas = [
-      { link: 'Treinar', heading: 'Treinar' },
-      { link: 'Agenda', heading: 'Agenda' },
-      { link: 'Progresso', heading: 'Progresso' },
-      { link: 'Perfil', heading: 'Perfil' },
-      { link: 'Inicio', heading: 'Inicio' },
-    ];
+    await expect(page).toHaveURL(/\/entrar/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Entrar' })).toBeVisible();
+  });
 
-    for (const area of areas) {
-      await page
-        .getByRole('navigation', { name: 'Navegacao principal' })
-        .getByRole('link', { name: area.link })
-        .click();
-      await expect(page.getByRole('heading', { level: 1, name: area.heading })).toBeVisible();
+  test('preserva o destino original', async ({ page }) => {
+    // Sem isto, quem abre um link direto para uma tela interna cairia em
+    // /inicio depois de entrar, perdendo o contexto do link.
+    await page.goto('/progresso');
+
+    await expect(page).toHaveURL(/destino=%2Fprogresso/);
+  });
+
+  test('todas as areas privadas exigem sessao', async ({ page }) => {
+    for (const rota of ['/inicio', '/treinar', '/agenda', '/progresso', '/perfil']) {
+      await page.goto(rota);
+      await expect(page, rota).toHaveURL(/\/entrar/);
     }
   });
 
-  test('cada alvo da navegacao tem no minimo 44 px', async ({ page }) => {
-    await page.goto('/inicio');
+  test('nao vaza conteudo privado no HTML da resposta', async ({ page }) => {
+    // O redirecionamento e do middleware, entao o corpo da rota protegida
+    // nunca chega ao navegador.
+    const response = await page.goto('/perfil');
+    const corpo = (await response?.text()) ?? '';
 
-    const links = page.getByRole('navigation', { name: 'Navegacao principal' }).getByRole('link');
-    const count = await links.count();
+    expect(corpo).not.toContain('Seus dados, objetivo e preferencias');
+  });
+});
 
-    expect(count).toBe(5);
+test.describe('Telas de autenticacao', () => {
+  test('login exibe os campos esperados', async ({ page }) => {
+    await page.goto('/entrar');
 
-    for (let index = 0; index < count; index += 1) {
-      const box = await links.nth(index).boundingBox();
-      expect(box, `item ${index} deveria ter caixa`).not.toBeNull();
-      expect(box?.height ?? 0, `altura do item ${index}`).toBeGreaterThanOrEqual(44);
-    }
+    await expect(page.getByLabel('E-mail')).toBeVisible();
+    await expect(page.getByLabel('Senha')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Entrar' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Esqueci minha senha' })).toBeVisible();
   });
 
-  test('nenhuma tela exibe dado de treino inventado', async ({ page }) => {
-    // A regra e explicita: nada de dado simulado para dar aparencia de pronto.
-    for (const path of ['/inicio', '/treinar', '/agenda', '/progresso', '/perfil']) {
-      await page.goto(path);
-      await expect(page.getByText(/ainda nao foi implementado/i)).toBeVisible();
-    }
+  test('valida o e-mail antes de enviar', async ({ page }) => {
+    await page.goto('/entrar');
+
+    await page.getByLabel('E-mail').fill('nao-e-email');
+    await page.getByLabel('Senha').fill('qualquercoisa');
+    await page.getByRole('button', { name: 'Entrar' }).click();
+
+    await expect(page.getByText('Informe um e-mail valido.')).toBeVisible();
   });
 
-  test('a pagina nao rola horizontalmente na menor largura suportada', async ({ page }) => {
-    await page.goto('/inicio');
+  test('recuperacao de senha e alcancavel', async ({ page }) => {
+    await page.goto('/entrar');
+    await page.getByRole('link', { name: 'Esqueci minha senha' }).click();
+
+    await expect(page.getByRole('heading', { level: 1, name: 'Recuperar senha' })).toBeVisible();
+  });
+
+  test('convite existe e nao cai em 404', async ({ page }) => {
+    // Ate a fase M2 esta rota nao existia, e o link do e-mail caia em uma
+    // pagina de nao encontrado.
+    const response = await page.goto('/convite');
+
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  });
+
+  test('campos de senha usam o tipo correto', async ({ page }) => {
+    await page.goto('/entrar');
+    await expect(page.getByLabel('Senha')).toHaveAttribute('type', 'password');
+  });
+
+  test('alvos de toque das telas de autenticacao respeitam o minimo', async ({ page }) => {
+    await page.goto('/entrar');
+
+    for (const nome of ['E-mail', 'Senha']) {
+      const caixa = await page.getByLabel(nome).boundingBox();
+      expect(caixa?.height ?? 0, nome).toBeGreaterThanOrEqual(44);
+    }
+
+    const botao = await page.getByRole('button', { name: 'Entrar' }).boundingBox();
+    expect(botao?.height ?? 0).toBeGreaterThanOrEqual(44);
+  });
+
+  test('a pagina nao rola horizontalmente na menor largura', async ({ page }) => {
+    await page.goto('/entrar');
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -97,12 +142,24 @@ test.describe('Navegacao', () => {
 });
 
 test.describe('Erros', () => {
-  test('endereco inexistente mostra pagina de nao encontrado', async ({ page }) => {
-    const response = await page.goto('/rota-que-nao-existe');
+  test('endereco desconhecido leva ao login quando nao ha sessao', async ({ page }) => {
+    // Consequencia direta de "protegido por padrao": o middleware roda antes do
+    // roteamento e nao sabe se o caminho existe, entao trata desconhecido como
+    // privado. O efeito colateral e desejavel — quem nao esta autenticado nao
+    // descobre quais rotas existem testando URLs.
+    await page.goto('/rota-que-nao-existe');
+
+    await expect(page).toHaveURL(/\/entrar/);
+  });
+
+  test('pagina de nao encontrado existe e e alcancavel', async ({ page }) => {
+    // Sob um caminho publico, o 404 real aparece.
+    const response = await page.goto('/status/caminho-inexistente');
 
     expect(response?.status()).toBe(404);
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    await expect(page.getByText('Pagina nao encontrada')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Pagina nao encontrada' }),
+    ).toBeVisible();
   });
 });
 

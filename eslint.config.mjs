@@ -102,8 +102,16 @@ export default tseslint.config(
 
   // --- Leitura de ambiente e ferramentas -----------------------------------
   {
-    // A leitura e validacao do ambiente precisa de process.env por definicao.
-    files: ['src/lib/config/**/*.ts', '*.config.ts', 'vitest.setup.ts'],
+    /**
+     * Arquivos que leem `process.env` por necessidade.
+     *
+     * `src/lib/config` e a origem da configuracao validada. `middleware.ts` e a
+     * excecao interessante: ele roda no Edge runtime e importar o modulo de
+     * configuracao o faria lancar no carregamento quando algo esta invalido —
+     * derrubando **toda** requisicao com 500. Lendo direto, ele degrada com
+     * elegancia e apenas bloqueia as rotas privadas.
+     */
+    files: ['src/lib/config/**/*.ts', 'src/middleware.ts', '*.config.ts', 'vitest.setup.ts'],
     rules: {
       'no-restricted-syntax': 'off',
       'no-console': 'off',
