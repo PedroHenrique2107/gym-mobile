@@ -6,7 +6,7 @@ Este documento define o que será construído no repositório `gym-mobile`, como
 
 O repositório será responsável pela experiência web mobile-first, pela Progressive Web App (PWA), pela autenticação no navegador, pelo consumo da API, pelo funcionamento offline controlado e pelo deploy do frontend na Vercel.
 
-> Estado atual: a branch `refactor/gym-mobile` contém apenas documentação. A aplicação será criada do zero. O repositório `gym-mobile-lovable` será usado exclusivamente como referência visual, editorial e de fluxo; ele não será editado nem adotado como base arquitetural.
+> Estado atual em 2026-08-09: M1–M4 e o núcleo não bloqueado da M5 implementados. Existem fundação, autenticação por convite, administração de contas, perfil/onboarding, biblioteca, fichas, agenda, execução de treino, indicadores, recordes, medidas, fotos privadas e exportação usando a API real. Consentimentos, exclusão e retenção continuam bloqueados por decisão jurídica; M6–M7 permanecem no roadmap. O repositório `gym-mobile-lovable` continua exclusivamente como referência e não foi editado.
 
 ## 2. Responsabilidades do `gym-mobile`
 
@@ -321,6 +321,8 @@ Critério de saída: usuário autorizado entra, mantém a sessão, sai com limpe
 
 ### Fase M3 — Perfil, biblioteca, fichas e agenda
 
+> Implementada em 2026-08-09 sem dependências novas: formulários nativos controlados, cache/invalidação pelo TanStack Query, `If-Match` nas alterações versionadas e confirmação antes de ações destrutivas.
+
 - implementar onboarding, perfil e objetivo;
 - construir biblioteca, filtros e exercícios personalizados;
 - criar CRUD de fichas, ordenação e metas;
@@ -330,6 +332,8 @@ Critério de saída: usuário autorizado entra, mantém a sessão, sai com limpe
 Critério de saída: todos os fluxos usam somente a API e ficam isolados por usuário.
 
 ### Fase M4 — Execução do treino
+
+> Implementada em 2026-08-09 para operação online: a sessão ativa é retomada da API após recarregar, o snapshot pertence ao servidor, séries usam UUID escolhido pelo cliente e o encerramento usa `Idempotency-Key`. A persistência de uma operação ainda não enviada por falta de rede pertence à outbox da M6.
 
 - iniciar e retomar uma sessão;
 - criar snapshot do treino recebido da API;
@@ -342,11 +346,15 @@ Critério de saída: uma sessão completa pode ser registrada sem perda de dados
 
 ### Fase M5 — Progresso e privacidade
 
+> Núcleo não bloqueado implementado em 2026-08-09: resumo real de 90 dias, sessões recentes, recordes, histórico por exercício, medidas versionadas, tendência de peso, ciclo de fotos privadas e exportação. Não foram inventados textos legais nem uma política de exclusão/retenção.
+
 - histórico detalhado;
 - gráficos e recordes;
 - peso, medidas e fotos privadas;
 - preferências e consentimentos;
 - exportação e exclusão de conta.
+
+Estado dos itens: exportação implementada; preferências de treino ficam no perfil; consentimentos e exclusão aguardam conteúdo e regra jurídica aprovados.
 
 Critério de saída: indicadores usam dados reais, fotos exigem autorização e os fluxos de privacidade são verificáveis.
 
@@ -361,6 +369,8 @@ Critério de saída: indicadores usam dados reais, fotos exigem autorização e 
 Critério de saída: treino principal funciona com rede instável, sincroniza sem duplicar séries e não interrompe uma sessão ao atualizar.
 
 ### Fase M7 — Produção
+
+> Parcial em 2026-08-09: o workflow de CI foi preparado com verificação completa, build e E2E mobile. Deploy, domínio, variáveis reais, auditoria em dispositivos e medições de produção dependem do ambiente externo.
 
 - otimizar bundle, imagens, fontes e carregamento por rota;
 - validar acessibilidade e Web Vitals;

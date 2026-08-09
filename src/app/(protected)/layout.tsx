@@ -5,15 +5,9 @@ import { BottomNav } from '@/components/navigation/bottom-nav';
 /**
  * Layout da area autenticada.
  *
- * ATENCAO — estas rotas ainda **nao estao protegidas**. A verificacao de sessao
- * entra na fase M2, junto do Supabase Auth: sem um mecanismo de sessao, um
- * guardiao aqui redirecionaria todo acesso e tornaria a navegacao impossivel de
- * validar nesta fase.
- *
- * Isso e aceitavel hoje por um motivo verificavel: nenhuma destas telas le ou
- * exibe dado de usuario. Elas existem para validar a navegacao, os alvos de
- * toque e as safe areas. No momento em que a primeira consulta a API entrar
- * aqui, a protecao de rota precisa existir antes.
+ * Estas rotas sao protegidas pelo middleware, que valida a identidade no
+ * Supabase antes de renderizar qualquer dado privado. O layout cuida apenas da
+ * composicao visual; repetir a autorizacao aqui criaria duas fontes de verdade.
  *
  * `pb-28` reserva espaco para a navegacao fixa; sem isso o ultimo item de
  * qualquer lista ficaria permanentemente sob a barra.

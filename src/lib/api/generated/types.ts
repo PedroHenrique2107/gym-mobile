@@ -29,6 +29,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/accounts/{accountId}/measurements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista medidas corporais de um membro
+         * @description Cada leitura de dados fisicos de outra pessoa exige um registro de auditoria; se a auditoria falhar, nenhum dado e devolvido.
+         */
+        get: operations["AdminMeasurements_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/accounts/{accountId}/measurements/{measurementId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Le uma avaliacao corporal de um membro */
+        get: operations["AdminMeasurements_findOne"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/accounts/{accountId}/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista fotos de progresso de um membro com auditoria obrigatoria */
+        get: operations["AdminPhotos_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/accounts/{accountId}/photos/{photoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Le os metadados de uma foto de membro com auditoria obrigatoria */
+        get: operations["AdminPhotos_findOne"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/accounts/{accountId}/photos/{photoId}/read-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cria URL privada de leitura para o admin com auditoria obrigatoria */
+        post: operations["AdminPhotos_createReadUrl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/accounts/{id}/invitations/resend": {
         parameters: {
             query?: never;
@@ -282,6 +370,26 @@ export interface paths {
         patch: operations["Users_updateMe"];
         trace?: never;
     };
+    "/api/v1/me/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Exporta os dados da propria conta
+         * @description Devolve um JSON estruturado com perfil, consentimentos, treinos, medidas e fotos. Fotos confirmadas incluem URLs privadas validas por cinco minutos; o campo interno storagePath nao faz parte da resposta.
+         */
+        get: operations["Users_exportMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/progress/exercises/{exerciseId}/history": {
         parameters: {
             query?: never;
@@ -316,6 +424,148 @@ export interface paths {
         get: operations["Progress_loadSuggestion"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/progress/measurements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Historico de medidas corporais
+         * @description Devolve os pontos selecionados em ordem cronologica para os graficos. Valores decimais saem como string e campos nao medidos ficam nulos.
+         */
+        get: operations["Measurements_list"];
+        put?: never;
+        /**
+         * Registra medidas corporais
+         * @description Aceita uma avaliacao parcial, mas exige ao menos uma metrica. Existe no maximo uma avaliacao por data; complete ou corrija a existente por PATCH.
+         */
+        post: operations["Measurements_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/progress/measurements/{measurementId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Le uma avaliacao corporal */
+        get: operations["Measurements_findOne"];
+        put?: never;
+        post?: never;
+        /** Exclui uma avaliacao corporal */
+        delete: operations["Measurements_remove"];
+        options?: never;
+        head?: never;
+        /**
+         * Corrige ou completa uma avaliacao corporal
+         * @description Campo ausente preserva o valor e nulo remove a metrica. If-Match evita sobrescrever uma correcao feita em outro dispositivo.
+         */
+        patch: operations["Measurements_update"];
+        trace?: never;
+    };
+    "/api/v1/progress/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista as proprias fotos de progresso */
+        get: operations["Photos_list"];
+        put?: never;
+        /**
+         * Reserva uma foto e cria a URL temporaria de upload
+         * @description O caminho e gerado pela API e os metadados sao persistidos antes de a URL ser criada. A URL de upload expira em duas horas.
+         */
+        post: operations["Photos_reserve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/progress/photos/{photoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Le os metadados de uma foto de progresso */
+        get: operations["Photos_findOne"];
+        put?: never;
+        post?: never;
+        /**
+         * Exclui uma foto de progresso
+         * @description Remove primeiro o objeto privado e somente depois os metadados, para que uma falha temporaria possa ser repetida sem criar arquivo orfao.
+         */
+        delete: operations["Photos_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/progress/photos/{photoId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirma e valida o upload
+         * @description Confere no Storage o tamanho, o MIME e a assinatura binaria antes de liberar a leitura da foto.
+         */
+        post: operations["Photos_confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/progress/photos/{photoId}/read-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cria uma URL privada de leitura por cinco minutos */
+        post: operations["Photos_createReadUrl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/progress/photos/{photoId}/upload-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renova a URL de upload de uma reserva pendente */
+        post: operations["Photos_refreshUploadUrl"];
         delete?: never;
         options?: never;
         head?: never;
@@ -739,6 +989,24 @@ export interface components {
              */
             version: string;
         };
+        AccountExportResponse: {
+            /** Format: email */
+            accountEmail?: string | null;
+            consents: components["schemas"]["ConsentAcceptanceResponse"][];
+            customExercises: components["schemas"]["ExerciseDetailResponse"][];
+            dataAccessLog: components["schemas"]["DataAccessEventResponse"][];
+            /** @example 1 */
+            formatVersion: string;
+            /** Format: date-time */
+            generatedAt: string;
+            measurements: components["schemas"]["BodyMeasurementResponse"][];
+            photos: components["schemas"]["ExportProgressPhotoResponse"][];
+            profile: components["schemas"]["ProfileResponse"];
+            scheduleOverrides: components["schemas"]["ExportScheduleOverrideResponse"][];
+            sessions: components["schemas"]["SessionDetailResponse"][];
+            weeklySchedule: components["schemas"]["ExportWeeklyScheduleResponse"][];
+            workouts: components["schemas"]["WorkoutDetailResponse"][];
+        };
         AccountListResponse: {
             data: components["schemas"]["AccountResponse"][];
             usage: components["schemas"]["AccountUsageResponse"];
@@ -778,6 +1046,35 @@ export interface components {
         };
         /** @enum {string} */
         BiologicalSex: "FEMALE" | "MALE" | "INTERSEX" | "UNDISCLOSED";
+        BodyMeasurementListResponse: {
+            data: components["schemas"]["BodyMeasurementResponse"][];
+            /** @description Quantidade devolvida nesta consulta. */
+            total: number;
+        };
+        BodyMeasurementResponse: {
+            bodyFatPercentage?: string | null;
+            chestCm?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            hipsCm?: string | null;
+            /** Format: uuid */
+            id: string;
+            leftArmCm?: string | null;
+            leftCalfCm?: string | null;
+            leftThighCm?: string | null;
+            /** Format: date */
+            measuredOn: string;
+            neckCm?: string | null;
+            notes?: string | null;
+            rightArmCm?: string | null;
+            rightCalfCm?: string | null;
+            rightThighCm?: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            version: number;
+            waistCm?: string | null;
+            weightKg?: string | null;
+        };
         ConsentAcceptanceResponse: {
             /** Format: date-time */
             acceptedAt: string;
@@ -792,6 +1089,38 @@ export interface components {
         };
         /** @enum {string} */
         ConsentType: "TERMS_OF_SERVICE" | "PRIVACY_POLICY";
+        CreateBodyMeasurementRequest: {
+            /** @example 18.50 */
+            bodyFatPercentage?: string | null;
+            /** @example 102.00 */
+            chestCm?: string | null;
+            /** @example 99.00 */
+            hipsCm?: string | null;
+            /** @example 36.20 */
+            leftArmCm?: string | null;
+            /** @example 38.00 */
+            leftCalfCm?: string | null;
+            /** @example 58.00 */
+            leftThighCm?: string | null;
+            /**
+             * Format: date
+             * @example 2026-08-09
+             */
+            measuredOn: string;
+            /** @example 38.20 */
+            neckCm?: string | null;
+            notes?: string | null;
+            /** @example 36.40 */
+            rightArmCm?: string | null;
+            /** @example 38.10 */
+            rightCalfCm?: string | null;
+            /** @example 58.20 */
+            rightThighCm?: string | null;
+            /** @example 88.50 */
+            waistCm?: string | null;
+            /** @example 82.40 */
+            weightKg?: string | null;
+        };
         CreateExerciseRequest: {
             /** @description Exercicios equivalentes. Precisam ser visiveis para voce. */
             alternativeIds?: string[];
@@ -809,6 +1138,15 @@ export interface components {
             exercises?: components["schemas"]["WorkoutExerciseInput"][];
             name: string;
             notes?: string | null;
+        };
+        DataAccessEventResponse: {
+            /** Format: date-time */
+            accessedAt: string;
+            /** @enum {string|null} */
+            actorRole: "ADMIN" | "MEMBER" | null;
+            /** Format: uuid */
+            entityId?: string | null;
+            entityType: string;
         };
         DeleteExerciseResponse: {
             /** @description Verdadeiro quando o exercicio foi arquivado por estar em uso em alguma ficha, em vez de excluido. */
@@ -934,6 +1272,45 @@ export interface components {
         };
         /** @enum {string} */
         ExperienceLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+        ExportProgressPhotoResponse: {
+            /** Format: date */
+            capturedOn: string;
+            /** Format: date-time */
+            createdAt: string;
+            download?: components["schemas"]["SignedPhotoUrlResponse"] | null;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            mimeType: "image/jpeg" | "image/png" | "image/webp";
+            sizeBytes: number;
+            /** @enum {string} */
+            status: "PENDING" | "READY";
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            uploadedAt?: string | null;
+            /** Format: date-time */
+            uploadExpiresAt: string;
+            version: number;
+        };
+        ExportScheduleOverrideResponse: {
+            /** Format: date */
+            date: string;
+            /** @enum {string} */
+            kind: "REPLACED" | "REST" | "RESCHEDULED";
+            /** Format: date */
+            movedToDate?: string | null;
+            notes?: string | null;
+            /** Format: uuid */
+            templateId?: string | null;
+            version: number;
+        };
+        ExportWeeklyScheduleResponse: {
+            /** Format: uuid */
+            templateId: string;
+            version: number;
+            weekday: number;
+        };
         FinishSessionRequest: {
             /**
              * Format: date-time
@@ -1135,6 +1512,38 @@ export interface components {
         ProfileRole: "ADMIN" | "MEMBER";
         /** @enum {string} */
         ProfileStatus: "PENDING_INVITE" | "ACTIVE" | "INACTIVE" | "PENDING_DELETION";
+        ProgressPhotoListResponse: {
+            data: components["schemas"]["ProgressPhotoResponse"][];
+            total: number;
+        };
+        ProgressPhotoReadUrlResponse: {
+            download: components["schemas"]["SignedPhotoUrlResponse"];
+            photo: components["schemas"]["ProgressPhotoResponse"];
+        };
+        ProgressPhotoReservationResponse: {
+            photo: components["schemas"]["ProgressPhotoResponse"];
+            upload: components["schemas"]["SignedPhotoUrlResponse"];
+        };
+        ProgressPhotoResponse: {
+            /** Format: date */
+            capturedOn: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            mimeType: "image/jpeg" | "image/png" | "image/webp";
+            sizeBytes: number;
+            /** @enum {string} */
+            status: "PENDING" | "READY";
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            uploadedAt?: string | null;
+            /** Format: date-time */
+            uploadExpiresAt: string;
+            version: number;
+        };
         ProgressSummaryResponse: {
             /** @description Sessoes abandonadas no periodo. */
             abandonedSessions: number;
@@ -1208,6 +1617,20 @@ export interface components {
              * @example 2026-08-01
              */
             version: string;
+        };
+        ReserveProgressPhotoRequest: {
+            /**
+             * Format: date
+             * @example 2026-08-09
+             */
+            capturedOn: string;
+            /**
+             * @example image/jpeg
+             * @enum {string}
+             */
+            mimeType: "image/jpeg" | "image/png" | "image/webp";
+            /** @example 2457600 */
+            sizeBytes: number;
         };
         ResolvedScheduleResponse: {
             /** @description Um item por data do periodo. */
@@ -1436,6 +1859,12 @@ export interface components {
              */
             workoutId: string;
         };
+        SignedPhotoUrlResponse: {
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uri */
+            url: string;
+        };
         StartSessionRequest: {
             /**
              * Format: date-time
@@ -1466,6 +1895,38 @@ export interface components {
         UpdateAccountStatusRequest: {
             /** @enum {string} */
             status: "ACTIVE" | "INACTIVE";
+        };
+        UpdateBodyMeasurementRequest: {
+            /** @example 18.50 */
+            bodyFatPercentage?: string | null;
+            /** @example 102.00 */
+            chestCm?: string | null;
+            /** @example 99.00 */
+            hipsCm?: string | null;
+            /** @example 36.20 */
+            leftArmCm?: string | null;
+            /** @example 38.00 */
+            leftCalfCm?: string | null;
+            /** @example 58.00 */
+            leftThighCm?: string | null;
+            /**
+             * Format: date
+             * @example 2026-08-09
+             */
+            measuredOn?: string;
+            /** @example 38.20 */
+            neckCm?: string | null;
+            notes?: string | null;
+            /** @example 36.40 */
+            rightArmCm?: string | null;
+            /** @example 38.10 */
+            rightCalfCm?: string | null;
+            /** @example 58.20 */
+            rightThighCm?: string | null;
+            /** @example 88.50 */
+            waistCm?: string | null;
+            /** @example 82.40 */
+            weightKg?: string | null;
         };
         UpdateExerciseRequest: {
             alternativeIds?: string[];
@@ -1688,6 +2149,418 @@ export interface operations {
             };
             /** @description Autenticado, mas sem permissao para esta acao. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AdminMeasurements_list: {
+        parameters: {
+            query?: {
+                from?: string;
+                limit?: number;
+                to?: string;
+            };
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BodyMeasurementListResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AdminMeasurements_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+                measurementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BodyMeasurementResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AdminPhotos_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                status?: "PENDING" | "READY";
+            };
+            header?: never;
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressPhotoListResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AdminPhotos_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressPhotoResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AdminPhotos_createReadUrl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: string;
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressPhotoReadUrlResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3052,6 +3925,81 @@ export interface operations {
             };
         };
     };
+    Users_exportMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    /** @description Sugestao de nome para salvar o arquivo JSON. */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountExportResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     Progress_history: {
         parameters: {
             query?: {
@@ -3178,6 +4126,1006 @@ export interface operations {
             };
             /** @description JSON valido, porem com dados que as regras rejeitam. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Measurements_list: {
+        parameters: {
+            query?: {
+                from?: string;
+                limit?: number;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BodyMeasurementListResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Measurements_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBodyMeasurementRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BodyMeasurementResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Measurements_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                measurementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BodyMeasurementResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Measurements_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                measurementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Measurements_update: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Versao conhecida do recurso, como devolvida no ETag do GET. Aceita `"3"`, `3` ou `W/"3"`. Curinga `*` e recusado, porque significaria aceitar sobrescrever qualquer versao. */
+                "If-Match": string;
+            };
+            path: {
+                measurementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBodyMeasurementRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BodyMeasurementResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Alteracao enviada sem informar a versao conhecida do recurso em If-Match. */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Photos_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                status?: "PENDING" | "READY";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressPhotoListResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Photos_reserve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReserveProgressPhotoRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressPhotoReservationResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Corpo ou arquivo acima do limite permitido. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Content-Type nao suportado. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Photos_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressPhotoResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Photos_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Photos_confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressPhotoResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Photos_createReadUrl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressPhotoReadUrlResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Photos_refreshUploadUrl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressPhotoReservationResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

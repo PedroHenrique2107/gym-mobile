@@ -35,15 +35,15 @@ export default function LandingPage() {
         <Card className="border-warning/30 bg-warning/5">
           <CardTitle className="text-warning">Em desenvolvimento</CardTitle>
           <CardDescription className="mt-1 leading-relaxed">
-            Esta versao contem apenas a fundacao tecnica do aplicativo: tema, navegacao, tratamento
-            de erros e conexao com a API. Login, treinos, historico e funcionamento offline ainda
-            nao foram construidos.
+            Esta versao ja permite entrar por convite, configurar o perfil, criar exercicios e
+            fichas e organizar a agenda. Execucao de treino, historico completo e funcionamento
+            offline ainda estao nas proximas fases.
           </CardDescription>
         </Card>
 
         <div className="flex flex-col gap-3">
           <Link href="/inicio" className={buttonVariants({ size: 'lg', variant: 'primary' })}>
-            Ver a navegacao
+            Entrar no aplicativo
           </Link>
           <Link href="/status" className={buttonVariants({ size: 'lg', variant: 'outline' })}>
             Verificar conexao com a API

@@ -2,13 +2,14 @@
 
 PWA mobile-first do GymFlow. Cuida da interface, da sessão do usuário, do consumo da API do `gym-service` e do deploy do frontend na Vercel.
 
-> **Estado atual: fase M1 concluída (fundação).**
-> Existem tema, navegação, páginas de erro, cliente de API tipado pelo contrato do backend e uma página de diagnóstico de conexão.
-> **Não existem** login, treinos, histórico, gráficos, cronômetro nem funcionamento offline. As telas dessas áreas são navegáveis e declaram explicitamente que a funcionalidade não foi construída — elas não exibem nenhum dado de exemplo. Consulte [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md) para o escopo completo.
+> **Estado atual: fases M1–M4 e o núcleo não bloqueado da M5 implementados.**
+> O app possui autenticação por convite, administração de contas, perfil/onboarding, biblioteca, fichas, agenda, execução completa de treino, progresso, medidas, fotos privadas e exportação estruturada usando a API real.
+> Offline/PWA e produção continuam nas fases M6–M7. Exclusão de conta, consentimentos e retenção aguardam texto e decisão jurídica. Nenhuma tela usa dados fictícios. Consulte [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md) para o escopo completo.
 
 ## Sumário
 
 - [Responsabilidades](#responsabilidades)
+- [O que já funciona](#o-que-já-funciona)
 - [Stack](#stack)
 - [Pré-requisitos](#pré-requisitos)
 - [Como executar](#como-executar)
@@ -25,9 +26,24 @@ PWA mobile-first do GymFlow. Cuida da interface, da sessão do usuário, do cons
 
 ## Responsabilidades
 
-O frontend renderiza a interface, conduz autenticação no navegador, mantém e renova a sessão do Supabase Auth, envia o access token em toda chamada privada, consome exclusivamente a API versionada, administra cache de leitura e sincronização offline, e oferece a experiência instalável.
+O frontend renderiza a interface, conduz autenticação no navegador, mantém e renova a sessão do Supabase Auth, envia o access token em toda chamada privada, consome exclusivamente a API versionada e administra o cache de leitura. Sincronização offline e instalação entram na M6.
 
 O frontend **não** acessa tabelas do PostgreSQL, **não** executa regras críticas de autorização, **não** possui `DATABASE_URL`, chave de service role ou credenciais do Prisma, e **não** decide se um usuário pode acessar dados de outro. Essas decisões são sempre do `gym-service`.
+
+## O que já funciona
+
+- entrar por convite, recuperar/redefinir senha, renovar sessão e sair apagando o cache local;
+- completar e editar dados pessoais, objetivo, rotina, disponibilidade e preferências;
+- pesquisar e filtrar o catálogo, criar/editar e excluir ou arquivar exercícios próprios;
+- criar, editar, duplicar, ordenar, arquivar e excluir fichas, com séries, repetições, pausa e observações por exercício;
+- associar fichas aos sete dias, marcar descanso, substituir ou reagendar treinos por data;
+- iniciar ou retomar treino, registrar séries, carga, repetições, RPE, dor e aquecimento, usar a última carga, controlar descanso e concluir ou abandonar a sessão;
+- consultar resumo de 90 dias, histórico recente, recordes e evolução detalhada por exercício;
+- registrar, corrigir com controle de versão e excluir peso e medidas corporais, com gráfico real de peso;
+- enviar, validar, abrir por URL temporária e excluir fotos no Storage privado;
+- para administradores, convidar, reenviar convite, ativar/desativar contas e alterar papel dentro do limite de usuários;
+- baixar `gymflow-export.json` com os dados reais que a API já mantém;
+- diagnosticar a conexão e diferenciar erros de autenticação, permissão, validação, conflito e rede.
 
 ## Stack
 
@@ -46,13 +62,14 @@ O frontend **não** acessa tabelas do PostgreSQL, **não** executa regras críti
 | Qualidade | ESLint, Prettier, TypeScript strict |
 | Deploy | Vercel |
 
-Supabase Auth (`@supabase/supabase-js`, `@supabase/ssr`) entra em M2. Recharts entra em M5. Serwist e Dexie entram em M6. React Hook Form entra quando existir o primeiro formulário real, em M2 — adicioná-lo agora seria uma dependência sem uso.
+Supabase Auth já usa `@supabase/supabase-js` e `@supabase/ssr`. Os formulários usam estado React e controles nativos. O gráfico de peso da M5 é SVG acessível e derivado dos valores reais. Recharts, Serwist e Dexie não estão instalados; serão avaliados nas fases que realmente precisarem deles.
 
 ## Pré-requisitos
 
 - Node.js 22 (`node -v` deve mostrar `v22.x`)
 - npm 10 ou superior
-- O **`gym-service` rodando** para que a página de status mostre algo além de falha de conexão
+- Um usuário convidado no Supabase Auth para entrar nas rotas privadas
+- O **`gym-service` rodando** e apontando para o mesmo projeto Supabase
 
 ## Como executar
 
@@ -61,7 +78,7 @@ npm ci
 npm run dev
 ```
 
-Abra `http://localhost:3000`. Nenhuma credencial é necessária nesta fase.
+Abra `http://localhost:3000`. A landing e `/status` são públicas; as demais rotas exigem uma conta convidada.
 
 Para ver a integração com o backend funcionando, suba os dois:
 
@@ -105,19 +122,20 @@ A configuração é validada no import de `@/lib/config/env`, e não no primeiro
 | --- | --- | --- |
 | `/` | Público | Apresentação, declarando o estágio real do projeto |
 | `/status` | Público | Diagnóstico de conexão com o `gym-service` |
-| `/inicio` | Autenticado¹ | Navegável; painel entra em M2 |
-| `/treinar` | Autenticado¹ | Navegável; fichas e execução entram em M3/M4 |
-| `/agenda` | Autenticado¹ | Navegável; agenda entra em M3 |
-| `/progresso` | Autenticado¹ | Navegável; gráficos entram em M5 |
-| `/perfil` | Autenticado¹ | Navegável; perfil entra em M3 |
+| `/entrar` | Público | Login e acesso à recuperação de senha |
+| `/convite` | Público | Conclusão do convite e definição inicial de senha |
+| `/recuperar-senha` / `/redefinir-senha` | Público | Fluxo seguro de recuperação |
+| `/inicio` | Autenticado | Resumo do perfil real |
+| `/treinar` | Autenticado | Execução do treino, biblioteca, exercícios próprios e CRUD/ordenação de fichas |
+| `/agenda` | Autenticado | Semana recorrente, descanso, substituição e reagendamento |
+| `/progresso` | Autenticado | Indicadores, sessões, recordes, evolução, medidas e fotos privadas |
+| `/perfil` | Autenticado | Onboarding, edição completa, administração, exportação e logout |
 
-¹ **Estas rotas ainda não estão protegidas.** A verificação de sessão entra em M2, junto do Supabase Auth — sem mecanismo de sessão, um guardião redirecionaria todo acesso e tornaria a navegação impossível de validar nesta fase.
-
-Isso é aceitável hoje por um motivo verificável: **nenhuma dessas telas lê ou exibe dado de usuário.** Elas existem para validar navegação, alvos de toque e safe areas. No momento em que a primeira consulta à API entrar ali, a proteção de rota precisa existir antes.
+O middleware protege por exclusão: qualquer rota que não esteja na lista pública exige `getUser()` validado pelo Supabase antes de renderizar. Um `401` na API tenta renovar a sessão uma vez; `403` não desloga o usuário.
 
 `/status` é público de propósito: é usada justamente quando a autenticação não funciona, e exigir login para diagnosticar seria circular. Ela não expõe dado de usuário — apenas versão, tempo no ar e quais dependências estão configuradas.
 
-A navegação principal tem cinco áreas: Início, Treinar, Agenda, Progresso e Perfil. Biblioteca e gerenciamento de fichas serão acessados a partir de Treinar — seis ou mais alvos em 360 px de largura deixariam cada um abaixo do mínimo de 44 px.
+A navegação principal tem cinco áreas: Início, Treinar, Agenda, Progresso e Perfil. Biblioteca e fichas ficam dentro de Treinar — seis ou mais alvos em 360 px de largura deixariam cada um abaixo do mínimo de 44 px.
 
 ## Como os tipos da API são gerados
 
@@ -156,7 +174,7 @@ O backend responde em `application/problem+json` (RFC 9457). O cliente decide co
 
 Rede, `5xx` e `429` são transitórios e valem repetir, com backoff exponencial até 15 s e no máximo 3 tentativas. `4xx` não melhora sem corrigir o pedido — insistir só gasta bateria e cota.
 
-Mutações **não** são repetidas automaticamente. Sem `Idempotency-Key`, que entra em M6, repetir um POST poderia duplicar uma série registrada.
+Mutações **não** são repetidas automaticamente. A execução da M4 já envia UUID estável nas séries e `Idempotency-Key` ao encerrar o treino; a outbox persistente e o replay após recuperar a rede entram na M6.
 
 ### Nada interno chega à interface
 
@@ -199,14 +217,24 @@ gym-mobile/
 │  │  ├─ global-error.tsx     # Falha do próprio layout raiz
 │  │  └─ not-found.tsx
 │  ├─ components/
-│  │  ├─ ui/                  # button, card, input, label, badge, skeleton
+│  │  ├─ ui/                  # button, card, input, select, textarea, badge
+│  │  ├─ forms/               # Campo, dica e erro acessíveis
 │  │  ├─ navigation/          # bottom-nav, page-header
 │  │  └─ feedback/            # toaster, estados de vazio/erro/offline
 │  ├─ features/
+│  │  ├─ auth/                # Login, convite, recuperação e logout
+│  │  ├─ profile/             # Resumo, onboarding, edição e exportação
+│  │  ├─ admin/               # Convites, ativação, status, papéis e limite
+│  │  ├─ exercises/           # Biblioteca e exercícios personalizados
+│  │  ├─ workouts/            # CRUD, ordenação e metas das fichas
+│  │  ├─ schedule/            # Semana e exceções por data
+│  │  ├─ sessions/            # Execução, séries, descanso e encerramento
+│  │  ├─ progress/            # Indicadores, histórico, medidas e fotos
 │  │  └─ system/              # Diagnóstico da API
 │  ├─ lib/
 │  │  ├─ api/                 # Cliente, Problem Details, health, tipos gerados
 │  │  ├─ config/              # Validação de ambiente
+│  │  ├─ dates/               # Datas civis sem deslocamento por UTC
 │  │  ├─ query/               # QueryClient e provider
 │  │  └─ utils.ts
 │  └─ styles/globals.css      # Tokens do tema em oklch
@@ -276,9 +304,9 @@ Sem isso o Next sobe a árvore procurando um lockfile e pode escolher um diretó
 
 ## Testes
 
-**Unitários e de componente (Vitest):** 31 testes, executados e passando. Cobrem leitura de Problem Details, classificação de erros, política de retry, cliente de health e acessibilidade da navegação.
+**Unitários e de componente (Vitest):** 54 testes, executados e passando. Cobrem Problem Details, conflitos de versão, datas civis, política de retry, health, autenticação, acessibilidade da navegação e os cronômetros de treino/descanso.
 
-**E2E (Playwright):** 36 testes (12 × 3 perfis), executados e passando.
+**E2E (Playwright):** 60 testes (20 × 3 perfis), executados e passando.
 
 ```bash
 npx playwright install chromium webkit   # uma vez
@@ -295,16 +323,12 @@ Simular respostas dentro de um teste é legítimo e é o próprio ponto do teste
 
 ## O que ainda não existe
 
-Nada abaixo está implementado.
-
-- Supabase Auth, login, convite, recuperação e redefinição de senha
-- Proteção de rotas e renovação de sessão
-- Perfil, biblioteca de exercícios, fichas, agenda
-- Execução de treino, registro de séries, cronômetro
-- Histórico, gráficos, recordes, medidas, fotos
+- Exclusão de conta e política automática de retenção, ainda dependentes da decisão jurídica
+- Publicação de termos e política de privacidade; o registro de consentimentos permanece vazio até existir conteúdo jurídico aprovado
 - Manifest, Service Worker, IndexedDB, outbox, sincronização offline
 - Notificações push
+- Mídia dos exercícios, enquanto origem e licença não forem aprovadas
 - Content Security Policy
-- CI e configuração de deploy na Vercel
+- configuração de deploy na Vercel; o workflow de CI local ao repositório já está preparado, mas ainda não foi executado no GitHub
 
-As telas de `/inicio`, `/treinar`, `/agenda`, `/progresso` e `/perfil` declaram isso na própria interface. Elas não exibem dados de exemplo: preencher a tela com valores inventados daria a impressão de funcionalidade pronta e tornaria impossível saber, olhando o app, o que de fato funciona.
+As áreas pendentes declaram o próprio estado e não exibem dados de exemplo. As telas implementadas leem somente a API real e mantêm o isolamento decidido pelo backend.

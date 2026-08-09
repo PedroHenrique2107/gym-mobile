@@ -71,9 +71,8 @@ export function ProfileSummary() {
       <Card className="border-warning/30 bg-warning/5">
         <CardTitle className="text-warning">Ainda em construcao</CardTitle>
         <CardDescription className="mt-1 leading-relaxed">
-          Treino do dia, resumo semanal e ultimo desempenho dependem de fichas e sessoes
-          registradas, que entram nas proximas fases. Nada e exibido aqui antes de existir de
-          verdade.
+          O painel de desempenho entra com a execucao das sessoes na M4. Suas fichas reais ja podem
+          ser organizadas em Treinar e a semana em Agenda.
         </CardDescription>
       </Card>
     </div>
