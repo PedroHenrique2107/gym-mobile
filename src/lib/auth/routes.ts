@@ -15,6 +15,7 @@ export const PUBLIC_ROUTES = [
   '/recuperar-senha',
   '/redefinir-senha',
   '/status',
+  '/offline',
 ] as const;
 
 /**

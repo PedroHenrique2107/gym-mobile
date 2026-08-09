@@ -83,3 +83,6 @@ export const isAuthConfigured = Boolean(env.supabaseUrl && env.supabasePublishab
 export const isPushConfigured = Boolean(env.vapidPublicKey);
 
 export const isProduction = env.appEnv === 'production';
+
+/** Service Worker somente no build/start; em `next dev` ele causaria cache obsoleto. */
+export const isProductionBuild = process.env.NODE_ENV === 'production';

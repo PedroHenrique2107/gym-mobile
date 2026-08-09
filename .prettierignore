@@ -8,3 +8,5 @@ src/lib/api/generated/
 *.md
 package-lock.json
 next-env.d.ts
+public/sw.js
+public/sw.js.map

@@ -146,6 +146,21 @@ describe('classificacao de erros', () => {
       expect(error.isRetryable, `status ${status} nao deveria ser repetivel`).toBe(false);
     }
   });
+
+  it('repete idempotencia em andamento sem tratar todo 409 como transitorio', () => {
+    // Evita bloquear a outbox quando a primeira chamada ainda esta terminando,
+    // sem criar loop para conflitos que exigem decisao do usuario.
+    expect(
+      new ApiError({
+        status: 409,
+        code: ErrorCode.IDEMPOTENCY_IN_PROGRESS,
+        message: 'em andamento',
+      }).isRetryable,
+    ).toBe(true);
+    expect(new ApiError({ status: 409, code: ErrorCode.CONFLICT, message: 'conflito' }).isRetryable).toBe(
+      false,
+    );
+  });
 });
 
 describe('toNetworkError', () => {

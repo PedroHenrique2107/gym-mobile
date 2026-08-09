@@ -2,18 +2,12 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import prettierRecommended from 'eslint-plugin-prettier/recommended';
-import { FlatCompat } from '@eslint/eslintrc';
-
-const compat = new FlatCompat({ baseDirectory: import.meta.dirname });
+import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 
 /**
- * As configuracoes sao escopadas por extensao de proposito.
- *
- * O `eslint-config-next` instala o proprio parser, que nao repassa
- * `parserOptions.project`. Aplicado a arquivos `.mjs`, ele faz as regras que
- * dependem de tipo — `await-thenable`, `no-floating-promises` — falharem ao
- * carregar. Restringir cada bloco ao que ele realmente cobre resolve a raiz, em
- * vez de desligar as regras.
+ * As configuracoes sao escopadas por extensao de proposito. O Next 16 publica
+ * configuracao flat nativa, enquanto as regras TypeScript que dependem de tipo
+ * continuam limitadas ao codigo da aplicacao.
  */
 export default tseslint.config(
   {
@@ -25,6 +19,7 @@ export default tseslint.config(
       'playwright-report/**',
       'test-results/**',
       'next-env.d.ts',
+      'public/sw.js',
       // Arquivo gerado a partir do OpenAPI do gym-service. Editar a mao
       // quebraria a garantia de que os tipos vem do contrato.
       'src/lib/api/generated/**',
@@ -32,14 +27,12 @@ export default tseslint.config(
   },
 
   eslint.configs.recommended,
+  ...nextCoreWebVitals,
 
   // --- TypeScript da aplicacao ---------------------------------------------
   {
     files: ['**/*.ts', '**/*.tsx'],
-    extends: [
-      ...tseslint.configs.recommendedTypeChecked,
-      ...compat.extends('next/core-web-vitals'),
-    ],
+    extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -105,13 +98,19 @@ export default tseslint.config(
     /**
      * Arquivos que leem `process.env` por necessidade.
      *
-     * `src/lib/config` e a origem da configuracao validada. `middleware.ts` e a
+     * `src/lib/config` e a origem da configuracao validada. `proxy.ts` e a
      * excecao interessante: ele roda no Edge runtime e importar o modulo de
      * configuracao o faria lancar no carregamento quando algo esta invalido —
      * derrubando **toda** requisicao com 500. Lendo direto, ele degrada com
      * elegancia e apenas bloqueia as rotas privadas.
      */
-    files: ['src/lib/config/**/*.ts', 'src/middleware.ts', '*.config.ts', 'vitest.setup.ts'],
+    files: [
+      'src/lib/config/**/*.ts',
+      'src/proxy.ts',
+      '*.config.ts',
+      '*.config.mjs',
+      'vitest.setup.ts',
+    ],
     rules: {
       'no-restricted-syntax': 'off',
       'no-console': 'off',

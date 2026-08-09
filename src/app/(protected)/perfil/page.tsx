@@ -7,6 +7,8 @@ import { AdminAccountsPanel } from '@/features/admin/admin-accounts-panel';
 import { SignOutButton } from '@/features/auth/sign-out-button';
 import { AccountExportButton } from '@/features/profile/account-export-button';
 import { ProfileForm } from '@/features/profile/profile-form';
+import { NotificationSettings } from '@/features/pwa/notification-settings';
+import { PwaSettings } from '@/features/pwa/pwa-settings';
 
 export const metadata: Metadata = { title: 'Perfil' };
 
@@ -17,6 +19,8 @@ export default function PerfilPage() {
 
       <ProfileForm />
       <AdminAccountsPanel />
+      <PwaSettings />
+      <NotificationSettings />
 
       <div className="mt-6 flex flex-col gap-3 border-t border-border pt-6">
         <AccountExportButton />

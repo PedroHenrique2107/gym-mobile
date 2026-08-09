@@ -1,8 +1,18 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, CircleStop, Clock3, History, Play, Plus, SkipForward, Trash2 } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
+import {
+  Check,
+  CircleStop,
+  Clock3,
+  CloudOff,
+  History,
+  Play,
+  Plus,
+  SkipForward,
+  Trash2,
+} from 'lucide-react';
+import { useState, useSyncExternalStore, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
 import { FormField } from '@/components/forms/form-field';
@@ -14,9 +24,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { workoutKeys } from '@/features/workouts/workout-manager';
 import { apiClient } from '@/lib/api/client';
 import type { components } from '@/lib/api/generated/types';
-import { ApiError } from '@/lib/api/problem';
 import { describeApiError, requireApiData } from '@/lib/api/result';
 import { todayCivil } from '@/lib/dates/civil-date';
+import {
+  deleteTrainingSet,
+  finishTraining,
+  loadActiveSession,
+  loadWorkouts,
+  saveTrainingSet,
+  startTraining,
+  updateTrainingExercise,
+} from '@/lib/offline/training';
+import { discardOfflineChanges, retryBlockedOperations } from '@/lib/offline/repository';
+import { syncOutbox } from '@/lib/offline/sync';
+import type { OfflineQueueStatus } from '@/lib/offline/types';
+import { useOfflineOwnerId, useOfflineQueueStatus } from '@/lib/offline/use-offline-status';
 
 type SessionDetail = components['schemas']['SessionDetailResponse'];
 type SessionExercise = components['schemas']['SessionExerciseResponse'];
@@ -32,45 +54,32 @@ export const sessionKeys = {
 export function TrainingSession() {
   const queryClient = useQueryClient();
   const [selectedWorkoutId, setSelectedWorkoutId] = useState('');
+  const owner = useOfflineOwnerId();
+  const ownerId = owner.data;
+  const queueStatus = useOfflineQueueStatus(ownerId);
 
   const active = useQuery({
     queryKey: sessionKeys.active,
-    queryFn: async (): Promise<SessionDetail | null> => {
-      try {
-        const { data, error } = await apiClient.GET('/api/v1/sessions/active');
-        return requireApiData(data, error, 'procurar o treino ativo');
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 404) return null;
-        throw error;
-      }
-    },
+    enabled: Boolean(ownerId),
+    queryFn: () => loadActiveSession(ownerId!),
   });
 
   const workouts = useQuery({
     queryKey: workoutKeys.list,
-    enabled: active.data === null,
-    queryFn: async () => {
-      const { data, error } = await apiClient.GET('/api/v1/workouts');
-      return requireApiData(data, error, 'listar as fichas');
-    },
+    enabled: Boolean(ownerId) && active.data === null,
+    queryFn: () => loadWorkouts(ownerId!),
   });
 
   const start = useMutation({
     mutationFn: async (templateId: string) => {
-      const sessionId = crypto.randomUUID();
-      const { data, error } = await apiClient.PUT('/api/v1/sessions/{sessionId}', {
-        params: { path: { sessionId } },
-        body: {
-          templateId,
-          plannedDate: todayCivil(),
-          clientStartedAt: new Date().toISOString(),
-        },
-      });
-      return requireApiData(data, error, 'iniciar o treino');
+      if (!ownerId) throw new Error('A sessao local ainda nao esta disponivel.');
+      return startTraining(ownerId, templateId, todayCivil());
     },
-    onSuccess: (session) => {
-      queryClient.setQueryData(sessionKeys.active, session);
-      toast.success('Treino iniciado.');
+    onSuccess: (result) => {
+      queryClient.setQueryData(sessionKeys.active, result.session);
+      toast.success(
+        result.queued ? 'Treino iniciado offline e salvo neste aparelho.' : 'Treino iniciado.',
+      );
     },
     onError: async (error) => {
       await queryClient.invalidateQueries({ queryKey: sessionKeys.active });
@@ -78,7 +87,19 @@ export function TrainingSession() {
     },
   });
 
-  if (active.isPending) return <Card aria-busy="true">Procurando treino em andamento...</Card>;
+  if (owner.isPending) {
+    return <Card aria-busy="true">Procurando treino em andamento...</Card>;
+  }
+
+  if (!ownerId) {
+    return (
+      <Card className="border-destructive/30">Nao foi possivel identificar a sessao local.</Card>
+    );
+  }
+
+  if (active.isPending) {
+    return <Card aria-busy="true">Procurando treino em andamento...</Card>;
+  }
 
   if (active.isError) {
     return (
@@ -93,7 +114,9 @@ export function TrainingSession() {
     );
   }
 
-  if (active.data) return <ActiveSessionView session={active.data} />;
+  if (active.data) {
+    return <ActiveSessionView ownerId={ownerId} session={active.data} queueStatus={queueStatus} />;
+  }
 
   return (
     <Card className="border-primary/30 bg-primary/5">
@@ -103,6 +126,7 @@ export function TrainingSession() {
           A ficha vira um snapshot: alteracoes futuras nao mudam esta sessao.
         </CardDescription>
       </div>
+      <OfflineQueueNotice ownerId={ownerId} status={queueStatus} />
       <div className="flex gap-2">
         <Select
           aria-label="Ficha para iniciar"
@@ -132,7 +156,15 @@ export function TrainingSession() {
   );
 }
 
-function ActiveSessionView({ session }: { readonly session: SessionDetail }) {
+function ActiveSessionView({
+  ownerId,
+  session,
+  queueStatus,
+}: {
+  readonly ownerId: string;
+  readonly session: SessionDetail;
+  readonly queueStatus: OfflineQueueStatus;
+}) {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState(session.notes ?? '');
   const [restUntil, setRestUntil] = useState<number | null>(null);
@@ -151,32 +183,23 @@ function ActiveSessionView({ session }: { readonly session: SessionDetail }) {
       status: 'DONE' | 'SKIPPED';
     }) => {
       if (!exercise.exerciseId) throw new Error('O exercicio de origem nao esta mais disponivel.');
-      const { data, error } = await apiClient.PUT(
-        '/api/v1/sessions/{sessionId}/exercises/{sessionExerciseId}',
-        {
-          params: {
-            path: { sessionId: session.id, sessionExerciseId: exercise.id },
-          },
-          body: { exerciseId: exercise.exerciseId, status },
-        },
-      );
-      return requireApiData(data, error, 'atualizar o exercicio da sessao');
+      return updateTrainingExercise(ownerId, session, exercise.id, exercise.exerciseId, status);
     },
-    onSuccess: updateSession,
+    onSuccess: (result) => {
+      updateSession(result.session);
+      if (result.queued) toast.info('Alteracao salva offline.');
+    },
     onError: (error) =>
       toast.error(describeApiError(error, 'Nao foi possivel atualizar o exercicio.')),
   });
 
   const removeSet = useMutation({
     mutationFn: async (set: SetLog) => {
-      const { data, error } = await apiClient.DELETE('/api/v1/sessions/{sessionId}/sets/{setId}', {
-        params: { path: { sessionId: session.id, setId: set.id } },
-      });
-      return requireApiData(data, error, 'excluir a serie');
+      return deleteTrainingSet(ownerId, session, set);
     },
-    onSuccess: (updated) => {
-      updateSession(updated);
-      toast.success('Serie removida.');
+    onSuccess: (result) => {
+      updateSession(result.session);
+      toast.success(result.queued ? 'Serie removida e sincronizacao pendente.' : 'Serie removida.');
     },
     onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel excluir a serie.')),
   });
@@ -188,40 +211,34 @@ function ActiveSessionView({ session }: { readonly session: SessionDetail }) {
         for (const exercise of current.exercises.filter((item) => item.status === 'PENDING')) {
           if (!exercise.exerciseId) continue;
           const status = exercise.sets.length > 0 ? 'DONE' : 'SKIPPED';
-          const { data, error } = await apiClient.PUT(
-            '/api/v1/sessions/{sessionId}/exercises/{sessionExerciseId}',
-            {
-              params: {
-                path: { sessionId: current.id, sessionExerciseId: exercise.id },
-              },
-              body: { exerciseId: exercise.exerciseId, status },
-            },
+          const result = await updateTrainingExercise(
+            ownerId,
+            current,
+            exercise.id,
+            exercise.exerciseId,
+            status,
           );
-          current = requireApiData(data, error, 'preparar a conclusao da sessao');
+          current = result.session;
         }
+        const body: FinishSessionRequest = {
+          clientEndedAt: new Date().toISOString(),
+          notes: notes.trim() || null,
+        };
+        return finishTraining(ownerId, current, action, body);
       }
 
       const body: FinishSessionRequest = {
         clientEndedAt: new Date().toISOString(),
         notes: notes.trim() || null,
       };
-      const path =
-        action === 'complete'
-          ? '/api/v1/sessions/{sessionId}/complete'
-          : '/api/v1/sessions/{sessionId}/abandon';
-      const { data, error } = await apiClient.POST(path, {
-        params: {
-          path: { sessionId: session.id },
-          header: { 'Idempotency-Key': crypto.randomUUID() },
-        },
-        body,
-      });
-      return requireApiData(data, error, 'encerrar a sessao');
+      return finishTraining(ownerId, session, action, body);
     },
-    onSuccess: async (ended) => {
+    onSuccess: async (result) => {
       queryClient.setQueryData(sessionKeys.active, null);
       await queryClient.invalidateQueries({ queryKey: sessionKeys.all });
-      toast.success(ended.status === 'COMPLETED' ? 'Treino concluido.' : 'Treino abandonado.');
+      const label =
+        result.session.status === 'COMPLETED' ? 'Treino concluido.' : 'Treino abandonado.';
+      toast.success(result.queued ? `${label} Sincronizacao pendente.` : label);
     },
     onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel encerrar o treino.')),
   });
@@ -241,6 +258,7 @@ function ActiveSessionView({ session }: { readonly session: SessionDetail }) {
             {formatElapsed(session.startedAt, now)}
           </div>
         </div>
+        <OfflineQueueNotice ownerId={ownerId} status={queueStatus} />
         {restSeconds > 0 ? (
           <div role="timer" className="mt-3 rounded-lg bg-warning/10 p-3 text-center text-warning">
             Descanso: <strong className="tabular">{formatSeconds(restSeconds)}</strong>
@@ -254,7 +272,8 @@ function ActiveSessionView({ session }: { readonly session: SessionDetail }) {
       {session.exercises.map((exercise) => (
         <ExerciseLogger
           key={exercise.id}
-          sessionId={session.id}
+          ownerId={ownerId}
+          session={session}
           exercise={exercise}
           disabled={session.status !== 'ACTIVE'}
           onUpdated={updateSession}
@@ -301,7 +320,8 @@ function ActiveSessionView({ session }: { readonly session: SessionDetail }) {
 }
 
 function ExerciseLogger({
-  sessionId,
+  ownerId,
+  session,
   exercise,
   disabled,
   onUpdated,
@@ -309,7 +329,8 @@ function ExerciseLogger({
   onRemoveSet,
   onStatus,
 }: {
-  readonly sessionId: string;
+  readonly ownerId: string;
+  readonly session: SessionDetail;
   readonly exercise: SessionExercise;
   readonly disabled: boolean;
   readonly onUpdated: (session: SessionDetail) => void;
@@ -329,18 +350,14 @@ function ExerciseLogger({
 
   const saveSet = useMutation({
     mutationFn: async ({ setId, body }: { setId: string; body: UpsertSetRequest }) => {
-      const { data, error } = await apiClient.PUT('/api/v1/sessions/{sessionId}/sets/{setId}', {
-        params: { path: { sessionId, setId } },
-        body,
-      });
-      return requireApiData(data, error, 'registrar a serie');
+      return saveTrainingSet(ownerId, session, setId, body);
     },
-    onSuccess: (updated) => {
-      onUpdated(updated);
+    onSuccess: (result) => {
+      onUpdated(result.session);
       onRest(exercise.restSeconds);
       setNotes('');
       setNextSetId(crypto.randomUUID());
-      toast.success('Serie registrada.');
+      toast.success(result.queued ? 'Serie salva offline.' : 'Serie registrada.');
     },
     onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel registrar a serie.')),
   });
@@ -533,14 +550,16 @@ function ExerciseLogger({
 }
 
 function useClock(): number {
-  const [now, setNow] = useState(Date.now());
+  return useSyncExternalStore(subscribeClock, readClock, () => 0);
+}
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
+function subscribeClock(onChange: () => void): () => void {
+  const timer = window.setInterval(onChange, 1000);
+  return () => window.clearInterval(timer);
+}
 
-  return now;
+function readClock(): number {
+  return Date.now();
 }
 
 export function formatElapsed(startedAt: string, now: number): string {
@@ -559,4 +578,100 @@ function exerciseStatusLabel(status: SessionExercise['status']): string {
   return { PENDING: 'Pendente', DONE: 'Concluido', SKIPPED: 'Pulado', REPLACED: 'Substituido' }[
     status
   ];
+}
+
+function OfflineQueueNotice({
+  ownerId,
+  status,
+}: {
+  readonly ownerId: string;
+  readonly status: OfflineQueueStatus;
+}) {
+  const queryClient = useQueryClient();
+  const retry = useMutation({
+    mutationFn: async () => {
+      await retryBlockedOperations(ownerId);
+      const result = await syncOutbox(ownerId, { force: true });
+      if (result.blocked) {
+        if (result.error instanceof Error) throw result.error;
+        throw new Error('A sincronizacao continua bloqueada.');
+      }
+      return result;
+    },
+    onSuccess: async (result) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: sessionKeys.all }),
+        queryClient.invalidateQueries({ queryKey: workoutKeys.list }),
+      ]);
+      toast.success(
+        result.pending > 0
+          ? 'Sincronizacao agendada para uma nova tentativa.'
+          : 'Alteracoes sincronizadas.',
+      );
+    },
+    onError: (error) =>
+      toast.error(describeApiError(error, 'A alteracao ainda precisa de atencao.')),
+  });
+  const discard = useMutation({
+    mutationFn: () => discardOfflineChanges(ownerId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+      toast.success('Alteracoes locais descartadas. Os dados do servidor foram recarregados.');
+    },
+    onError: (error) =>
+      toast.error(describeApiError(error, 'Nao foi possivel descartar as alteracoes locais.')),
+  });
+
+  if (status.blocked > 0) {
+    return (
+      <div className="mt-3 rounded-lg bg-destructive/10 p-3 text-xs text-destructive">
+        <p className="flex items-center gap-2 font-medium">
+          <CloudOff className="size-4" />
+          {status.blocked}{' '}
+          {status.blocked === 1
+            ? 'alteracao local precisa de atencao'
+            : 'alteracoes locais precisam de atencao'}
+        </p>
+        <p className="mt-1">
+          O servidor recusou a sincronizacao. Nada foi descartado automaticamente.
+        </p>
+        <div className="mt-2 flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={retry.isPending}
+            onClick={() => retry.mutate()}
+          >
+            Tentar novamente
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={discard.isPending}
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Descartar todas as alteracoes offline que ainda nao chegaram ao servidor?',
+                )
+              ) {
+                discard.mutate();
+              }
+            }}
+          >
+            Descartar locais
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status.pending === 0) return null;
+
+  return (
+    <p className="mt-3 flex items-center gap-2 rounded-lg bg-warning/10 p-2 text-xs text-warning">
+      <CloudOff className="size-4" />
+      {status.pending} {status.pending === 1 ? 'alteracao aguarda' : 'alteracoes aguardam'}{' '}
+      sincronizacao
+    </p>
+  );
 }

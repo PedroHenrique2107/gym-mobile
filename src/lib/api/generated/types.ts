@@ -390,6 +390,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Informa se Web Push esta disponivel */
+        get: operations["Notifications_config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista preferencias de notificacao */
+        get: operations["Notifications_preferences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/preferences/{type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Altera uma preferencia de notificacao */
+        patch: operations["Notifications_updatePreference"];
+        trace?: never;
+    };
+    "/api/v1/notifications/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista dispositivos inscritos em Web Push */
+        get: operations["Notifications_subscriptions"];
+        put?: never;
+        /**
+         * Registra ou renova a subscription deste navegador
+         * @description Repetir o mesmo endpoint atualiza o registro existente. Se o navegador mudou de conta, a subscription e transferida e os envios pendentes da conta anterior sao removidos.
+         */
+        post: operations["Notifications_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/subscriptions/{subscriptionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove um dispositivo das notificacoes */
+        delete: operations["Notifications_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/progress/exercises/{exerciseId}/history": {
         parameters: {
             query?: never;
@@ -995,13 +1084,15 @@ export interface components {
             consents: components["schemas"]["ConsentAcceptanceResponse"][];
             customExercises: components["schemas"]["ExerciseDetailResponse"][];
             dataAccessLog: components["schemas"]["DataAccessEventResponse"][];
-            /** @example 1 */
+            /** @example 2 */
             formatVersion: string;
             /** Format: date-time */
             generatedAt: string;
             measurements: components["schemas"]["BodyMeasurementResponse"][];
+            notificationPreferences: components["schemas"]["NotificationPreferenceResponse"][];
             photos: components["schemas"]["ExportProgressPhotoResponse"][];
             profile: components["schemas"]["ProfileResponse"];
+            pushSubscriptions: components["schemas"]["PushSubscriptionResponse"][];
             scheduleOverrides: components["schemas"]["ExportScheduleOverrideResponse"][];
             sessions: components["schemas"]["SessionDetailResponse"][];
             weeklySchedule: components["schemas"]["ExportWeeklyScheduleResponse"][];
@@ -1369,6 +1460,27 @@ export interface components {
         };
         /** @enum {string} */
         MuscleGroup: "CHEST" | "BACK" | "SHOULDERS" | "BICEPS" | "TRICEPS" | "FOREARMS" | "CORE" | "GLUTES" | "QUADS" | "HAMSTRINGS" | "CALVES" | "FULL_BODY";
+        NotificationConfigResponse: {
+            /** @description Se o backend possui o par VAPID necessario para enviar. */
+            enabled: boolean;
+            publicKey?: string | null;
+        };
+        NotificationPreferenceListResponse: {
+            data: components["schemas"]["NotificationPreferenceResponse"][];
+        };
+        NotificationPreferenceResponse: {
+            enabled: boolean;
+            /**
+             * @description Horario local HH:mm, interpretado no timezone do perfil.
+             * @example 18:30
+             */
+            reminderTime?: string | null;
+            type: components["schemas"]["NotificationType"];
+            /** @description Nulo enquanto a preferencia ainda usa o padrao desabilitado. */
+            version?: number | null;
+        };
+        /** @enum {string} */
+        NotificationType: "WORKOUT_REMINDER";
         PendingConsentsResponse: {
             consents: components["schemas"]["RequiredConsentResponse"][];
             /** @description Se ha algum documento aguardando aceite. Quando `false`, o aplicativo pode seguir sem bloquear o usuario. */
@@ -1565,6 +1677,24 @@ export interface components {
             /** @description Series de trabalho, sem contar aquecimento. */
             workingSets: number;
         };
+        PushSubscriptionKeysRequest: {
+            auth: string;
+            p256dh: string;
+        };
+        PushSubscriptionListResponse: {
+            data: components["schemas"]["PushSubscriptionResponse"][];
+        };
+        PushSubscriptionResponse: {
+            /** Format: date-time */
+            createdAt: string;
+            deviceName?: string | null;
+            /** Format: date-time */
+            expirationAt?: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            lastUsedAt: string;
+        };
         ReadinessCheckResponse: {
             /**
              * @description Explicacao curta, sem host, credencial ou mensagem de driver.
@@ -1596,6 +1726,17 @@ export interface components {
         RecordsResponse: {
             /** @description Um recorde por exercicio treinado. */
             data: components["schemas"]["ExerciseRecordResponse"][];
+        };
+        RegisterPushSubscriptionRequest: {
+            deviceName?: string | null;
+            /** @description Endpoint HTTPS devolvido pela Push API do navegador. */
+            endpoint: string;
+            /**
+             * Format: int64
+             * @description Instante em milissegundos desde Unix, quando informado pelo navegador.
+             */
+            expirationTime?: number | null;
+            keys: components["schemas"]["PushSubscriptionKeysRequest"];
         };
         ReorderWorkoutsRequest: {
             /** @description Todas as fichas nao arquivadas, na ordem desejada. */
@@ -1937,6 +2078,11 @@ export interface components {
             name?: string;
             primaryMuscle?: components["schemas"]["MuscleGroup"];
             secondaryMuscles?: components["schemas"]["MuscleGroup"][];
+        };
+        UpdateNotificationPreferenceRequest: {
+            enabled?: boolean;
+            /** @example 18:30 */
+            reminderTime?: string | null;
         };
         UpdateProfileRequest: {
             /**
@@ -3964,6 +4110,448 @@ export interface operations {
             };
             /** @description Recurso inexistente dentro do escopo permitido. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Notifications_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationConfigResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Notifications_preferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferenceListResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Notifications_updatePreference: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Versao conhecida do recurso, como devolvida no ETag do GET. Aceita `"3"`, `3` ou `W/"3"`. Curinga `*` e recusado, porque significaria aceitar sobrescrever qualquer versao. Omita enquanto a preferencia ainda tiver version nula. */
+                "If-Match"?: string;
+            };
+            path: {
+                type: components["schemas"]["NotificationType"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateNotificationPreferenceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferenceResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Alteracao enviada sem informar a versao conhecida do recurso em If-Match. */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Notifications_subscriptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushSubscriptionListResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Notifications_register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterPushSubscriptionRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushSubscriptionResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Notifications_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subscriptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 
 import { Toaster } from '@/components/feedback/toaster';
+import { GymflowPwaProvider } from '@/features/pwa/pwa-provider';
 import { SessionProvider } from '@/lib/auth/session-provider';
 import { QueryProvider } from '@/lib/query/query-provider';
 
@@ -13,6 +14,15 @@ export const metadata: Metadata = {
   },
   description: 'Organize seus treinos de academia e acompanhe seu progresso.',
   applicationName: 'GymFlow',
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: [
+      { url: '/icons/icon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'GymFlow' },
   // A aplicacao e privada: nada deve ser indexado.
   robots: { index: false, follow: false },
   formatDetection: { telephone: false, email: false, address: false },
@@ -54,7 +64,9 @@ export default function RootLayout({ children }: { readonly children: React.Reac
         </a>
 
         <QueryProvider>
-          <SessionProvider>{children}</SessionProvider>
+          <GymflowPwaProvider>
+            <SessionProvider>{children}</SessionProvider>
+          </GymflowPwaProvider>
         </QueryProvider>
         <Toaster />
       </body>

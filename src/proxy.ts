@@ -24,7 +24,7 @@ import {
  * sessão renovada precisa voltar ao navegador como cookie. Server Components não
  * podem escrever cookies; o middleware pode.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // A resposta é criada antes da consulta ao Supabase porque os cookies de
@@ -119,6 +119,6 @@ export const config = {
    * em cada um deles seria uma chamada de rede por asset.
    */
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icons/|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons/|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)',
   ],
 };

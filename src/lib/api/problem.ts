@@ -24,6 +24,8 @@ export const ErrorCode = {
   CONFLICT: 'CONFLICT',
   RESOURCE_VERSION_CONFLICT: 'RESOURCE_VERSION_CONFLICT',
   IDEMPOTENCY_KEY_MISMATCH: 'IDEMPOTENCY_KEY_MISMATCH',
+  IDEMPOTENCY_KEY_REQUIRED: 'IDEMPOTENCY_KEY_REQUIRED',
+  IDEMPOTENCY_IN_PROGRESS: 'IDEMPOTENCY_IN_PROGRESS',
   RESOURCE_IN_USE: 'RESOURCE_IN_USE',
   ACCOUNT_LIMIT_REACHED: 'ACCOUNT_LIMIT_REACHED',
   VALIDATION_ERROR: 'VALIDATION_ERROR',
@@ -111,7 +113,12 @@ export class ApiError extends Error {
    * payload apenas gasta bateria e cota.
    */
   get isRetryable(): boolean {
-    return this.status === 0 || this.status >= 500 || this.status === 429;
+    return (
+      this.status === 0 ||
+      this.status >= 500 ||
+      this.status === 429 ||
+      this.code === ErrorCode.IDEMPOTENCY_IN_PROGRESS
+    );
   }
 
   /** Versao atual do recurso em um conflito de concorrencia. */

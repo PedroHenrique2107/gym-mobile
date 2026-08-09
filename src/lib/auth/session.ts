@@ -3,6 +3,8 @@
 import type { QueryClient } from '@tanstack/react-query';
 
 import { setSessionExpiredHandler, setSessionRefresher, setTokenProvider } from '@/lib/api/client';
+import { clearOfflineUser } from '@/lib/offline/repository';
+import { cancelOutboxSync } from '@/lib/offline/sync';
 
 import { getSupabaseBrowserClient, resetSupabaseBrowserClient } from './supabase-browser';
 
@@ -50,11 +52,12 @@ export function disconnectSessionFromApi(): void {
  * tem dados mas a sessão ainda vale — e um refetch nesse intervalo repovoaria o
  * cache com dados do usuário que está saindo.
  *
- * O plano exige que logout limpe cache, IndexedDB e dados temporários. O
- * IndexedDB entra em M6, quando passar a existir.
+ * O plano exige que logout limpe cache, IndexedDB e dados temporários.
  */
 export async function signOutAndClear(queryClient: QueryClient): Promise<void> {
   const supabase = getSupabaseBrowserClient();
+  const { data: current } = await supabase.auth.getSession();
+  const ownerId = current.session?.user.id;
 
   try {
     // `scope: 'local'` encerra apenas este dispositivo. Sair de todos seria uma
@@ -72,6 +75,11 @@ export async function signOutAndClear(queryClient: QueryClient): Promise<void> {
   // `clear` e não `invalidateQueries`: invalidar mantém os dados em memória até
   // o próximo refetch, e eles pertencem a quem acabou de sair.
   queryClient.clear();
+
+  if (ownerId) {
+    cancelOutboxSync(ownerId);
+    await clearOfflineUser(ownerId);
+  }
 
   resetSupabaseBrowserClient();
 }

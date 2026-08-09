@@ -55,10 +55,9 @@ const nextConfig: NextConfig = {
    */
   outputFileTracingRoot: fileURLToPath(new URL('.', import.meta.url)),
 
-  // Um erro de tipo ou de lint precisa quebrar o build. Ignorar aqui e o
-  // caminho mais curto para um deploy com regressao silenciosa.
+  // Um erro de tipo precisa quebrar o build. O Next 16 removeu a opcao de lint
+  // no build; o script `verify` executa ESLint antes desta etapa.
   typescript: { ignoreBuildErrors: false },
-  eslint: { ignoreDuringBuilds: false },
 
   // O header revela a stack sem beneficio algum.
   poweredByHeader: false,

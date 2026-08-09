@@ -177,6 +177,63 @@ test.describe('Cabecalhos de seguranca', () => {
   });
 });
 
+test.describe('PWA', () => {
+  test('publica manifesto e icones instalaveis', async ({ request }) => {
+    // Evita um deploy que parece PWA, mas nao pode ser instalado por falta de metadados ou icones.
+    const response = await request.get('/manifest.webmanifest');
+    expect(response.ok()).toBe(true);
+    const manifest = (await response.json()) as {
+      name: string;
+      display: string;
+      start_url: string;
+      icons: { src: string; sizes: string }[];
+    };
+
+    expect(manifest).toMatchObject({
+      name: 'GymFlow',
+      display: 'standalone',
+      start_url: '/inicio',
+    });
+    expect(manifest.icons.map((icon) => icon.sizes)).toEqual(
+      expect.arrayContaining(['192x192', '512x512']),
+    );
+    for (const icon of manifest.icons) {
+      expect((await request.get(icon.src)).ok(), icon.src).toBe(true);
+    }
+  });
+
+  test('registra o service worker e mantem a tela offline disponivel', async ({
+    page,
+    context,
+  }) => {
+    // Evita que a instalacao seja entregue sem worker ativo ou sem uma resposta util ao perder a rede.
+    await page.goto('/offline');
+    await page.evaluate(async () => navigator.serviceWorker.ready);
+    await page.reload();
+    await context.setOffline(true);
+
+    try {
+      await page.reload();
+      await expect(
+        page.getByRole('heading', { level: 1, name: 'Voce esta offline' }),
+      ).toBeVisible();
+    } finally {
+      await context.setOffline(false);
+    }
+  });
+
+  test('nao inclui respostas da API no cache de runtime', async ({ request }) => {
+    // Evita que dados privados de um usuario sobrevivam no Cache Storage apos logout ou troca de conta.
+    const response = await request.get('/sw.js');
+    expect(response.ok()).toBe(true);
+    const worker = await response.text();
+
+    expect(worker).toContain('gymflow-static-v1');
+    expect(worker).toContain('/offline');
+    expect(worker).not.toContain('gymflow-api');
+  });
+});
+
 test.describe('Status da API', () => {
   test('informa a falha de verdade quando a API nao responde', async ({ page }) => {
     // Sem simulacao de sucesso: se o gym-service nao estiver no ar, a tela deve
