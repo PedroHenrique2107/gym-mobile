@@ -143,7 +143,9 @@ function safeNotificationPath(value: unknown): string {
     const decoded = decodeURIComponent(value);
     if (decoded.startsWith('//') || decoded.includes('\\')) return '/inicio';
     const url = new URL(value, self.location.origin);
-    return url.origin === self.location.origin ? `${url.pathname}${url.search}${url.hash}` : '/inicio';
+    return url.origin === self.location.origin
+      ? `${url.pathname}${url.search}${url.hash}`
+      : '/inicio';
   } catch {
     return '/inicio';
   }

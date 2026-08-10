@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 
 /**
  * Verifica os critérios de saida da fase M1.
@@ -172,9 +173,31 @@ test.describe('Cabecalhos de seguranca', () => {
     expect(headers['x-frame-options']).toBe('DENY');
     expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
     expect(headers['permissions-policy']).toContain('camera=()');
+    expect(headers['strict-transport-security']).toBe('max-age=63072000; includeSubDomains');
     // O header revelaria a stack sem beneficio.
     expect(headers['x-powered-by']).toBeUndefined();
   });
+});
+
+test.describe('Acessibilidade automatizada', () => {
+  for (const [route, heading] of [
+    ['/', 'GymFlow'],
+    ['/entrar', 'Entrar'],
+    ['/offline', 'Voce esta offline'],
+  ] as const) {
+    test(`${route} nao possui violacoes WCAG A ou AA detectaveis`, async ({ page }) => {
+      // Um gate automatizado nao substitui leitor de tela nem aparelho real,
+      // mas impede que regressões objetivas cheguem ao preview sem sinalizacao.
+      await page.goto(route);
+      await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
+
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+        .analyze();
+
+      expect(results.violations).toEqual([]);
+    });
+  }
 });
 
 test.describe('PWA', () => {
@@ -205,11 +228,28 @@ test.describe('PWA', () => {
   test('registra o service worker e mantem a tela offline disponivel', async ({
     page,
     context,
+    browserName,
   }) => {
     // Evita que a instalacao seja entregue sem worker ativo ou sem uma resposta util ao perder a rede.
     await page.goto('/offline');
     await page.evaluate(async () => navigator.serviceWorker.ready);
     await page.reload();
+
+    await expect
+      .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
+      .toBe(true);
+    await expect
+      .poll(() =>
+        page.evaluate(async () => Boolean(await caches.match('/offline', { ignoreSearch: true }))),
+      )
+      .toBe(true);
+
+    // O WebKit do Playwright no Windows encerra a navegacao com erro interno
+    // quando o contexto fica offline, mesmo quando o worker devolve a pagina.
+    // O cache e o controle do worker continuam verificados acima; os dois
+    // projetos Chromium exercitam a navegacao offline completa abaixo.
+    if (browserName === 'webkit') return;
+
     await context.setOffline(true);
 
     try {

@@ -2,9 +2,9 @@
 
 PWA mobile-first do GymFlow. Cuida da interface, da sessão do usuário, do consumo da API do `gym-service` e do deploy do frontend na Vercel.
 
-> **Estado atual: fases M1–M4 e o núcleo não bloqueado da M5 implementados.**
-> O app possui autenticação por convite, administração de contas, perfil/onboarding, biblioteca, fichas, agenda, execução completa de treino, progresso, medidas, fotos privadas e exportação estruturada usando a API real.
-> Offline/PWA e produção continuam nas fases M6–M7. Exclusão de conta, consentimentos e retenção aguardam texto e decisão jurídica. Nenhuma tela usa dados fictícios. Consulte [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md) para o escopo completo.
+> **Estado atual: fases M1–M4, núcleo não bloqueado da M5 e implementação local da M6 concluídos.**
+> O app possui autenticação por convite, administração de contas, perfil/onboarding, biblioteca, fichas, agenda, treino online e offline, progresso, medidas, fotos privadas, exportação, instalação PWA e configuração de notificações usando a API real.
+> A M6 ainda exige validação em Android/iPhone reais e entrega Web Push com VAPID configurado. A M7 já possui CI, acessibilidade automatizada, HSTS, smoke de preview e [runbook de produção](docs/PRODUCTION_RUNBOOK.md), mas o ambiente externo ainda não foi publicado. Exclusão de conta, consentimentos e retenção aguardam texto e decisão jurídica. Nenhuma tela usa dados fictícios. Consulte [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md) para o escopo completo.
 
 ## Sumário
 
@@ -26,7 +26,7 @@ PWA mobile-first do GymFlow. Cuida da interface, da sessão do usuário, do cons
 
 ## Responsabilidades
 
-O frontend renderiza a interface, conduz autenticação no navegador, mantém e renova a sessão do Supabase Auth, envia o access token em toda chamada privada, consome exclusivamente a API versionada e administra o cache de leitura. Sincronização offline e instalação entram na M6.
+O frontend renderiza a interface, conduz autenticação no navegador, mantém e renova a sessão do Supabase Auth, envia o access token em toda chamada privada, consome exclusivamente a API versionada, administra o cache de leitura e mantém a outbox offline separada por usuário.
 
 O frontend **não** acessa tabelas do PostgreSQL, **não** executa regras críticas de autorização, **não** possui `DATABASE_URL`, chave de service role ou credenciais do Prisma, e **não** decide se um usuário pode acessar dados de outro. Essas decisões são sempre do `gym-service`.
 
@@ -43,6 +43,10 @@ O frontend **não** acessa tabelas do PostgreSQL, **não** executa regras críti
 - enviar, validar, abrir por URL temporária e excluir fotos no Storage privado;
 - para administradores, convidar, reenviar convite, ativar/desativar contas e alterar papel dentro do limite de usuários;
 - baixar `gymflow-export.json` com os dados reais que a API já mantém;
+- instalar o aplicativo como PWA, abrir uma tela útil sem rede e atualizar o Service Worker sem interromper um treino ativo;
+- continuar um treino sem conexão, persistir operações em ordem e sincronizá-las sem duplicação quando a rede voltar;
+- visualizar operações offline bloqueadas, tentar novamente ou descartá-las explicitamente;
+- solicitar permissão de notificações, configurar horário, listar dispositivos inscritos e remover uma inscrição;
 - diagnosticar a conexão e diferenciar erros de autenticação, permissão, validação, conflito e rede.
 
 ## Stack
@@ -50,19 +54,21 @@ O frontend **não** acessa tabelas do PostgreSQL, **não** executa regras críti
 | Área | Tecnologia |
 | --- | --- |
 | Runtime | Node.js 22 LTS, npm |
-| Framework | Next.js 15 (App Router) |
+| Framework | Next.js 16 (App Router e Proxy) |
 | Interface | React 19, TypeScript strict |
 | Estilos | Tailwind CSS 4 |
 | Ícones | Lucide React |
 | Estado remoto | TanStack Query 5 |
+| PWA | Serwist 9 e Service Worker próprio |
+| Dados offline | IndexedDB por meio do Dexie 4 |
 | Cliente de API | `openapi-fetch` + `openapi-typescript` |
 | Toasts | Sonner |
 | Validação | Zod |
-| Testes | Vitest + Testing Library, Playwright |
+| Testes | Vitest + Testing Library, Playwright + Axe |
 | Qualidade | ESLint, Prettier, TypeScript strict |
 | Deploy | Vercel |
 
-Supabase Auth já usa `@supabase/supabase-js` e `@supabase/ssr`. Os formulários usam estado React e controles nativos. O gráfico de peso da M5 é SVG acessível e derivado dos valores reais. Recharts, Serwist e Dexie não estão instalados; serão avaliados nas fases que realmente precisarem deles.
+Supabase Auth usa `@supabase/supabase-js` e `@supabase/ssr`. Os formulários usam estado React e controles nativos. O gráfico de peso é SVG acessível e derivado dos valores reais. Serwist gera o worker depois do build do Next; Dexie mantém snapshots e operações offline sem armazenar JWT, refresh token ou header `Authorization`.
 
 ## Pré-requisitos
 
@@ -122,6 +128,7 @@ A configuração é validada no import de `@/lib/config/env`, e não no primeiro
 | --- | --- | --- |
 | `/` | Público | Apresentação, declarando o estágio real do projeto |
 | `/status` | Público | Diagnóstico de conexão com o `gym-service` |
+| `/offline` | Público | Fallback precacheado e orientação quando não há rede |
 | `/entrar` | Público | Login e acesso à recuperação de senha |
 | `/convite` | Público | Conclusão do convite e definição inicial de senha |
 | `/recuperar-senha` / `/redefinir-senha` | Público | Fluxo seguro de recuperação |
@@ -131,7 +138,7 @@ A configuração é validada no import de `@/lib/config/env`, e não no primeiro
 | `/progresso` | Autenticado | Indicadores, sessões, recordes, evolução, medidas e fotos privadas |
 | `/perfil` | Autenticado | Onboarding, edição completa, administração, exportação e logout |
 
-O middleware protege por exclusão: qualquer rota que não esteja na lista pública exige `getUser()` validado pelo Supabase antes de renderizar. Um `401` na API tenta renovar a sessão uma vez; `403` não desloga o usuário.
+O Proxy do Next protege por exclusão: qualquer rota que não esteja na lista pública exige `getUser()` validado pelo Supabase antes de renderizar. Um `401` na API tenta renovar a sessão uma vez; `403` não desloga o usuário.
 
 `/status` é público de propósito: é usada justamente quando a autenticação não funciona, e exigir login para diagnosticar seria circular. Ela não expõe dado de usuário — apenas versão, tempo no ar e quais dependências estão configuradas.
 
@@ -174,7 +181,7 @@ O backend responde em `application/problem+json` (RFC 9457). O cliente decide co
 
 Rede, `5xx` e `429` são transitórios e valem repetir, com backoff exponencial até 15 s e no máximo 3 tentativas. `4xx` não melhora sem corrigir o pedido — insistir só gasta bateria e cota.
 
-Mutações **não** são repetidas automaticamente. A execução da M4 já envia UUID estável nas séries e `Idempotency-Key` ao encerrar o treino; a outbox persistente e o replay após recuperar a rede entram na M6.
+Mutações comuns **não** são repetidas pelo TanStack Query. As operações reenviáveis do treino usam UUID e `Idempotency-Key`, entram numa outbox Dexie ordenada e são repetidas com backoff quando a rede volta. `5xx`, `429` e `IDEMPOTENCY_IN_PROGRESS` permanecem na fila; erros `4xx` definitivos ficam bloqueados para revisão do usuário, sem loop de bateria ou perda silenciosa.
 
 ### Nada interno chega à interface
 
@@ -213,6 +220,8 @@ gym-mobile/
 │  │  ├─ (public)/            # Landing e status
 │  │  ├─ (protected)/         # Cinco áreas da navegação principal
 │  │  ├─ layout.tsx           # pt-BR, viewport, providers
+│  │  ├─ manifest.ts           # Metadados instaláveis
+│  │  ├─ sw.ts                 # Cache, fallback offline e Web Push
 │  │  ├─ error.tsx            # Fronteira de erro das rotas
 │  │  ├─ global-error.tsx     # Falha do próprio layout raiz
 │  │  └─ not-found.tsx
@@ -230,16 +239,20 @@ gym-mobile/
 │  │  ├─ schedule/            # Semana e exceções por data
 │  │  ├─ sessions/            # Execução, séries, descanso e encerramento
 │  │  ├─ progress/            # Indicadores, histórico, medidas e fotos
+│  │  ├─ pwa/                 # Instalação, atualização e notificações
 │  │  └─ system/              # Diagnóstico da API
 │  ├─ lib/
 │  │  ├─ api/                 # Cliente, Problem Details, health, tipos gerados
 │  │  ├─ config/              # Validação de ambiente
 │  │  ├─ dates/               # Datas civis sem deslocamento por UTC
 │  │  ├─ query/               # QueryClient e provider
+│  │  ├─ offline/             # Dexie, snapshots, outbox e sincronização
 │  │  └─ utils.ts
 │  └─ styles/globals.css      # Tokens do tema em oklch
 ├─ scripts/
-│  └─ generate-api-types.mjs
+│  ├─ generate-api-types.mjs
+│  └─ smoke.mjs                # Preview: páginas, PWA e headers
+├─ docs/PRODUCTION_RUNBOOK.md   # Deploy, aparelhos reais e rollback
 ├─ tests/e2e/
 └─ .env.example
 ```
@@ -266,9 +279,9 @@ Eles ficam **fora** de `/api/v1`: são contrato de plataforma, não de negócio,
 
 A API autentica por `Authorization: Bearer`. Os cookies de sessão do Supabase pertencem à origem do Next.js, nunca à origem da API, então `credentials: 'omit'`.
 
-### CSP ficou para M7
+### CSP estrita aguarda a medição do preview
 
-O Next injeta scripts inline no bootstrap, então uma CSP útil exige nonce por requisição — o que força renderização dinâmica em toda página e conflita com o shell estático que a PWA precisa. A alternativa preguiçosa, `script-src 'unsafe-inline'`, daria aparência de proteção sem nenhuma. Os outros cabeçalhos de segurança já estão configurados e verificados em teste.
+O Next injeta scripts inline no bootstrap, então uma CSP útil exige nonce por requisição — o que força renderização dinâmica em toda página e conflita com o shell estático que a PWA precisa. A alternativa preguiçosa, `script-src 'unsafe-inline'`, daria aparência de proteção sem nenhuma. Os outros cabeçalhos de segurança, incluindo HSTS no build de produção, estão configurados e verificados em teste. O [runbook](docs/PRODUCTION_RUNBOOK.md#6-csp) registra o gate para reavaliar nonce depois de medir o preview.
 
 ### Tema dark-first em `:root`
 
@@ -276,11 +289,9 @@ Por decisão de produto, não por preferência do sistema: academia costuma ter 
 
 Todas as cores usam `oklch` porque ele é perceptualmente uniforme — ajustar o L de um token muda o contraste de forma previsível, o que não acontece com `hsl`.
 
-### ESLint escopado por extensão
+### ESLint separado do build do Next 16
 
-O `eslint-config-next` instala o próprio parser, que não repassa `parserOptions.project`. Aplicado a arquivos `.mjs`, fazia as regras que dependem de tipo falharem ao carregar. Restringir cada bloco ao que ele cobre resolve a raiz em vez de desligar as regras.
-
-Como efeito colateral, `next build` emite *"The Next.js plugin was not detected in your ESLint configuration"* — é a heurística de detecção do Next não achar o plugin dentro de um bloco escopado. As regras **rodam**: verificado provocando `@next/next/no-img-element`, que dispara e, como `lint` usa `--max-warnings=0`, falha a verificação.
+O Next 16 removeu a execução implícita de lint durante `next build`. O projeto usa a configuração flat oficial do `eslint-config-next` e mantém `npm run lint` como gate explícito antes de testes e build. Assim uma atualização do bundler não altera silenciosamente a política de qualidade.
 
 ### `outputFileTracingRoot` fixado
 
@@ -290,23 +301,25 @@ Sem isso o Next sobe a árvore procurando um lockfile e pode escolher um diretó
 
 | Comando | Descrição |
 | --- | --- |
-| `npm run dev` | Desenvolvimento |
-| `npm run build` | Build de produção |
+| `npm run dev` | Next em desenvolvimento e rebuild contínuo do Service Worker |
+| `npm run build` | Build de produção do Next seguido pelo worker do Serwist |
+| `npm run pwa:build` | Regenera somente `public/sw.js` |
 | `npm start` | Executa o build |
 | `npm run lint` | ESLint, zero warnings tolerados |
 | `npm run format` | Prettier |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Testes unitários e de componente |
 | `npm run test:e2e` | Playwright (exige `npx playwright install chromium webkit`) |
+| `npm run smoke -- https://preview.exemplo.com` | Valida páginas públicas, PWA e headers no deployment |
 | `npm run api:types` | Regenera os tipos a partir do contrato |
 | `npm run api:types:check` | Verifica se os tipos estão sincronizados |
 | `npm run verify` | Formato + lint + typecheck + testes + build |
 
 ## Testes
 
-**Unitários e de componente (Vitest):** 54 testes, executados e passando. Cobrem Problem Details, conflitos de versão, datas civis, política de retry, health, autenticação, acessibilidade da navegação e os cronômetros de treino/descanso.
+**Unitários e de componente (Vitest):** 64 testes, executados e passando. Cobrem Problem Details, conflitos de versão, datas civis, retry, health, autenticação, navegação, cronômetros, snapshots offline, outbox, sincronização e chave VAPID.
 
-**E2E (Playwright):** 60 testes (20 × 3 perfis), executados e passando.
+**E2E (Playwright):** 78 testes (26 × 3 perfis), executados e passando.
 
 ```bash
 npx playwright install chromium webkit   # uma vez
@@ -317,7 +330,7 @@ Eles rodam contra `build` + `start`, não contra o servidor de desenvolvimento: 
 
 O paralelismo está limitado a 3 workers. O padrão do Playwright derrubava **todos** os testes do WebKit no Windows, enquanto os mesmos passavam com um worker — contenção no lançamento do navegador, não falha da aplicação. Ao aumentar esse número, verifique o WebKit especificamente: ele é o que quebra primeiro.
 
-Estes testes já pagaram por si: encontraram dois defeitos reais que o resto da verificação não pegou. As páginas de erro e 404 não tinham `h1` nenhum, e a página de status levava mais de 7 segundos para informar que a API caiu, porque a política global de retry se aplicava a uma consulta de diagnóstico.
+O E2E verifica manifesto, ícones, registro e controle do Service Worker, precache da tela offline, ausência de cache para respostas da API, headers de produção e violações WCAG A/AA detectáveis pelo Axe. No WebKit para Windows, a navegação artificialmente offline possui um erro interno do navegador de teste; nesse perfil o teste comprova diretamente controle e Cache Storage, enquanto os dois projetos Chromium exercitam a navegação offline completa. A instalação final ainda precisa ser validada em aparelhos reais.
 
 Simular respostas dentro de um teste é legítimo e é o próprio ponto do teste. **Nenhum dado simulado existe no código que vai ao ar.**
 
@@ -325,10 +338,10 @@ Simular respostas dentro de um teste é legítimo e é o próprio ponto do teste
 
 - Exclusão de conta e política automática de retenção, ainda dependentes da decisão jurídica
 - Publicação de termos e política de privacidade; o registro de consentimentos permanece vazio até existir conteúdo jurídico aprovado
-- Manifest, Service Worker, IndexedDB, outbox, sincronização offline
-- Notificações push
+- validação de instalação, atualização e treino offline em Android e iPhone reais
+- entrega Web Push real após configurar as chaves VAPID no `gym-service`
 - Mídia dos exercícios, enquanto origem e licença não forem aprovadas
-- Content Security Policy
-- configuração de deploy na Vercel; o workflow de CI local ao repositório já está preparado, mas ainda não foi executado no GitHub
+- Content Security Policy estrita, condicionada à medição do custo de renderização no preview
+- configuração do projeto Vercel, domínio e variáveis finais; CI e smoke manual já estão preparados, mas ainda não foram executados no GitHub ou contra um deployment real
 
 As áreas pendentes declaram o próprio estado e não exibem dados de exemplo. As telas implementadas leem somente a API real e mantêm o isolamento decidido pelo backend.

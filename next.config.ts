@@ -40,6 +40,13 @@ const securityHeaders = [
 
   // Isola o contexto de navegacao de janelas abertas por terceiros.
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+
+  // O navegador so deve memorizar HTTPS no build que efetivamente vai ao ar.
+  // Enviar HSTS no `next dev` atrapalharia testes locais em HTTP sem aumentar
+  // a seguranca do ambiente publicado.
+  ...(process.env.NODE_ENV === 'production'
+    ? [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' }]
+    : []),
 ];
 
 const nextConfig: NextConfig = {

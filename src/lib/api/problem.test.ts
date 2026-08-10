@@ -157,9 +157,9 @@ describe('classificacao de erros', () => {
         message: 'em andamento',
       }).isRetryable,
     ).toBe(true);
-    expect(new ApiError({ status: 409, code: ErrorCode.CONFLICT, message: 'conflito' }).isRetryable).toBe(
-      false,
-    );
+    expect(
+      new ApiError({ status: 409, code: ErrorCode.CONFLICT, message: 'conflito' }).isRetryable,
+    ).toBe(false);
   });
 });
 

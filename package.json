@@ -21,6 +21,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "smoke": "node scripts/smoke.mjs",
     "api:types": "node scripts/generate-api-types.mjs",
     "api:types:check": "node scripts/generate-api-types.mjs --check",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"
@@ -42,6 +43,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.32.0",
     "@playwright/test": "^1.54.2",

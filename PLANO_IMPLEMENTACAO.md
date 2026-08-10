@@ -6,7 +6,7 @@ Este documento define o que será construído no repositório `gym-mobile`, como
 
 O repositório será responsável pela experiência web mobile-first, pela Progressive Web App (PWA), pela autenticação no navegador, pelo consumo da API, pelo funcionamento offline controlado e pelo deploy do frontend na Vercel.
 
-> Estado atual em 2026-08-09: M1–M4 e o núcleo não bloqueado da M5 implementados. Existem fundação, autenticação por convite, administração de contas, perfil/onboarding, biblioteca, fichas, agenda, execução de treino, indicadores, recordes, medidas, fotos privadas e exportação usando a API real. Consentimentos, exclusão e retenção continuam bloqueados por decisão jurídica; M6–M7 permanecem no roadmap. O repositório `gym-mobile-lovable` continua exclusivamente como referência e não foi editado.
+> Estado atual em 2026-08-09: M1–M4, o núcleo não bloqueado da M5 e a implementação local da M6 estão concluídos. Existem autenticação, administração, perfil, biblioteca, fichas, agenda, treino online/offline, progresso, medidas, fotos, exportação, PWA instalável, outbox e configuração Web Push usando a API real. A M6 ainda depende de validação em aparelhos reais e VAPID; M7 depende do ambiente de produção. Consentimentos, exclusão e retenção continuam bloqueados por decisão jurídica. O repositório `gym-mobile-lovable` continua exclusivamente como referência e não foi editado.
 
 ## 2. Responsabilidades do `gym-mobile`
 
@@ -333,7 +333,7 @@ Critério de saída: todos os fluxos usam somente a API e ficam isolados por usu
 
 ### Fase M4 — Execução do treino
 
-> Implementada em 2026-08-09 para operação online: a sessão ativa é retomada da API após recarregar, o snapshot pertence ao servidor, séries usam UUID escolhido pelo cliente e o encerramento usa `Idempotency-Key`. A persistência de uma operação ainda não enviada por falta de rede pertence à outbox da M6.
+> Implementada em 2026-08-09: a sessão ativa é retomada da API após recarregar, o snapshot pertence ao servidor, séries usam UUID escolhido pelo cliente e o encerramento usa `Idempotency-Key`. A M6 passou a persistir e repetir essas operações quando não há rede.
 
 - iniciar e retomar uma sessão;
 - criar snapshot do treino recebido da API;
@@ -360,6 +360,8 @@ Critério de saída: indicadores usam dados reais, fotos exigem autorização e 
 
 ### Fase M6 — PWA e offline
 
+> Implementação local concluída em 2026-08-09: Next.js 16, Serwist, manifesto, ícones, fallback offline, atualização segura, Dexie separado por usuário, snapshots, outbox idempotente, retry, tratamento de conflitos e interface de Web Push. O gate automatizado aprovou 64 testes Vitest, 69 E2E e build com 53 URLs precacheadas. Instalação e entrega de push ainda precisam ser comprovadas em Android/iPhone reais com VAPID configurado.
+
 - manifest, ícones, Service Worker e tela offline;
 - IndexedDB, outbox, replay idempotente e resolução de conflito;
 - atualização segura da aplicação;
@@ -370,7 +372,7 @@ Critério de saída: treino principal funciona com rede instável, sincroniza se
 
 ### Fase M7 — Produção
 
-> Parcial em 2026-08-09: o workflow de CI foi preparado com verificação completa, build e E2E mobile. Deploy, domínio, variáveis reais, auditoria em dispositivos e medições de produção dependem do ambiente externo.
+> Parcial em 2026-08-09: CI, HSTS de produção, smoke manual de preview, runbook e gate WCAG A/AA foram preparados; o gate local soma 78 E2E mobile. Deploy, domínio, variáveis reais, auditoria em dispositivos, CSP estrita e medições de produção dependem do ambiente externo.
 
 - otimizar bundle, imagens, fontes e carregamento por rota;
 - validar acessibilidade e Web Vitals;
