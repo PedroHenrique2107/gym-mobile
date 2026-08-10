@@ -7,10 +7,9 @@ import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 /**
  * Pagina inicial publica.
  *
- * O texto descreve apenas o que existe. O plano proibe anunciar funcionalidade
- * indisponivel, e essa restricao e util: uma landing que promete cronometro,
- * graficos e offline antes de eles existirem transforma cada primeira sessao em
- * frustracao, e torna impossivel saber pelo proprio app o que ja funciona.
+ * O texto descreve apenas o que existe e acompanha a capacidade entregue pelo
+ * aplicativo. Assim, a landing funciona tambem como um resumo confiavel para
+ * quem esta entrando pela primeira vez.
  */
 export default function LandingPage() {
   return (
@@ -32,12 +31,12 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <Card className="border-warning/30 bg-warning/5">
-          <CardTitle className="text-warning">Em desenvolvimento</CardTitle>
+        <Card className="border-primary/30 bg-primary/5">
+          <CardTitle className="text-primary">Pronto para treinar</CardTitle>
           <CardDescription className="mt-1 leading-relaxed">
-            Esta versao ja permite entrar por convite, configurar o perfil, criar exercicios e
-            fichas e organizar a agenda. Execucao de treino, historico completo e funcionamento
-            offline ainda estao nas proximas fases.
+            Entre por convite, configure seu perfil, crie exercicios e fichas, organize a agenda e
+            execute seus treinos. Sessoes, medidas e fotos registram seu progresso, com suporte
+            offline e sincronizacao ao reconectar.
           </CardDescription>
         </Card>
 
