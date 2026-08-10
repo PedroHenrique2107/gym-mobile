@@ -1,0 +1,192 @@
+@import 'tailwindcss';
+
+/*
+ * Design system do GymFlow.
+ *
+ * A direcao visual — grafite escuro com acao verde-limao — vem do prototipo
+ * Lovable. O que muda aqui sao as correcoes de acessibilidade que o prototipo
+ * nao tinha: zoom liberado, safe areas, alvos de toque de 44 px, foco visivel e
+ * respeito a reducao de movimento.
+ *
+ * Todas as cores usam oklch. O motivo e pratico: oklch e perceptualmente
+ * uniforme, entao ajustar o L de um token muda o contraste de forma previsivel,
+ * o que nao acontece com hsl.
+ *
+ * Para adicionar uma cor semantica: declare a variavel em `:root` e registre-a
+ * em `@theme inline` como `--color-<nome>`.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface-elevated: var(--surface-elevated);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+/*
+ * Tema escuro aplicado em `:root`.
+ *
+ * O app e dark-first por decisao de produto, nao por preferencia do sistema —
+ * academia costuma ter iluminacao ruim e a tela fica em uso durante o treino.
+ * Um tema claro pode ser adicionado depois com `.light`, sem reescrever tokens.
+ */
+:root {
+  --radius: 0.9rem;
+
+  --background: oklch(0.16 0.008 260);
+  --foreground: oklch(0.97 0.005 260);
+
+  --card: oklch(0.21 0.01 260);
+  --card-foreground: oklch(0.97 0.005 260);
+
+  --popover: oklch(0.21 0.01 260);
+  --popover-foreground: oklch(0.97 0.005 260);
+
+  /*
+   * Verde-limao de acao. L alto de proposito: sobre `--background` o contraste
+   * fica em torno de 13:1, e o texto que vai por cima usa
+   * `--primary-foreground` escuro, nao branco — verde-limao com texto branco
+   * reprovaria em contraste.
+   */
+  --primary: oklch(0.86 0.21 128);
+  --primary-foreground: oklch(0.18 0.03 130);
+
+  --secondary: oklch(0.27 0.012 260);
+  --secondary-foreground: oklch(0.97 0.005 260);
+
+  --muted: oklch(0.25 0.012 260);
+  /* L 0.72 mantem ~4.9:1 sobre o fundo: texto secundario legivel, nao decorativo. */
+  --muted-foreground: oklch(0.72 0.02 260);
+
+  --accent: oklch(0.3 0.02 260);
+  --accent-foreground: oklch(0.97 0.005 260);
+
+  --destructive: oklch(0.62 0.22 25);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  --success: oklch(0.78 0.18 150);
+  --success-foreground: oklch(0.18 0.03 150);
+
+  --warning: oklch(0.82 0.16 80);
+  --warning-foreground: oklch(0.18 0.03 80);
+
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.86 0.21 128);
+
+  --surface-elevated: oklch(0.25 0.012 260);
+
+  /* Series de graficos distinguiveis tambem sem cor, pela luminosidade. */
+  --chart-1: oklch(0.86 0.21 128);
+  --chart-2: oklch(0.72 0.14 220);
+  --chart-3: oklch(0.82 0.16 80);
+  --chart-4: oklch(0.7 0.18 20);
+  --chart-5: oklch(0.75 0.1 300);
+}
+
+/* --- Utilitarios de layout mobile ----------------------------------------- */
+
+/**
+ * Respeita a barra de gestos do iOS e a navegacao por gestos do Android.
+ * Sem isto, a navegacao inferior fica parcialmente inalcancavel no iPhone.
+ */
+@utility safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
+}
+
+@utility safe-top {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+}
+
+/** Alvo minimo de toque de 44 px, exigido pelo plano de acessibilidade. */
+@utility tap {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: dark;
+    /* Evita o iOS aumentar a fonte ao rodar o aparelho para paisagem. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    /* Remove o flash cinza ao tocar, que em uso rapido parece travamento. */
+    -webkit-tap-highlight-color: transparent;
+    /* Impede o "pull to refresh" recarregar a pagina no meio de um treino. */
+    overscroll-behavior-y: none;
+  }
+
+  /*
+   * Foco visivel sempre.
+   *
+   * `:focus-visible` mostra o anel para teclado e leitor de tela sem poluir a
+   * interface no toque. Remover outline sem substituto tornaria a navegacao por
+   * teclado inutilizavel.
+   */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  /*
+   * O usuario pediu menos movimento no sistema; animacao de interface nao e
+   * excecao. Nao usar `animation: none` para nao quebrar transicoes que
+   * dependem do evento `transitionend`.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Numeros de carga e cronometro nao devem "pular" ao mudar de valor. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
