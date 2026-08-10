@@ -11,10 +11,8 @@ import { useProfile } from './use-profile';
 /**
  * Resumo do perfil autenticado.
  *
- * Primeira tela que consome dado real da API. Ela mostra apenas o que existe:
- * nenhum indicador de treino, porque não há treino registrado — isso é a fase
- * M4. Preencher com números inventados daria a impressão de funcionalidade
- * pronta.
+ * Primeira tela que consome dado real da API. Alem das preferencias, orienta o
+ * usuario para as areas que concentram a execucao e o acompanhamento reais.
  */
 export function ProfileSummary() {
   const { data: profile, isPending, isError, error, refetch } = useProfile();
@@ -68,11 +66,12 @@ export function ProfileSummary() {
         </dl>
       </Card>
 
-      <Card className="border-warning/30 bg-warning/5">
-        <CardTitle className="text-warning">Ainda em construcao</CardTitle>
+      <Card className="border-primary/30 bg-primary/5">
+        <CardTitle className="text-primary">Seu treino em um so lugar</CardTitle>
         <CardDescription className="mt-1 leading-relaxed">
-          O painel de desempenho entra com a execucao das sessoes na M4. Suas fichas reais ja podem
-          ser organizadas em Treinar e a semana em Agenda.
+          Use Treinar para executar suas fichas, Agenda para organizar a semana e Progresso para
+          acompanhar sessoes, medidas e fotos. Seus treinos preparados continuam disponiveis mesmo
+          quando a conexao cair.
         </CardDescription>
       </Card>
     </div>
