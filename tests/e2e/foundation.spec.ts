@@ -15,8 +15,8 @@ test.describe('Fundacao', () => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { level: 1, name: 'GymFlow' })).toBeVisible();
-    // O plano proibe anunciar funcionalidade indisponivel.
-    await expect(page.getByText('Em desenvolvimento')).toBeVisible();
+    // A landing precisa acompanhar as capacidades que ja foram entregues.
+    await expect(page.getByText('Pronto para treinar')).toBeVisible();
   });
 
   test('o documento esta em pt-BR', async ({ page }) => {
