@@ -6,6 +6,7 @@ import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
 import { FormField } from '@/components/forms/form-field';
+import { IntegerInput } from '@/components/forms/numeric-input';
 import { EmptyState, ErrorState } from '@/components/feedback/state-message';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
@@ -464,7 +465,7 @@ function WorkoutForm({
                   </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-4">
                 <NumberField
                   label="Series"
                   value={item.targetSets ?? 3}
@@ -506,7 +507,7 @@ function WorkoutForm({
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
           <Button variant="outline" onClick={onCancel} disabled={save.isPending}>
             Cancelar
           </Button>
@@ -535,17 +536,12 @@ function NumberField({
   return (
     <label className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
       {label}
-      <Input
-        type="number"
+      <IntegerInput
         className="min-w-0 px-2 text-sm"
         min={min}
         max={max}
         value={value}
-        onChange={(event) => {
-          if (Number.isFinite(event.currentTarget.valueAsNumber)) {
-            onChange(event.currentTarget.valueAsNumber);
-          }
-        }}
+        onValueChange={onChange}
         required
       />
     </label>

@@ -5,6 +5,10 @@ import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
 import { FormField } from '@/components/forms/form-field';
+import {
+  DecimalInput as SanitizedDecimalInput,
+  IntegerInput,
+} from '@/components/forms/numeric-input';
 import { ErrorState } from '@/components/feedback/state-message';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
@@ -169,7 +173,7 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
           />
         </FormField>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
           <FormField id="profile-birth" label="Nascimento">
             <Input
               id="profile-birth"
@@ -193,20 +197,20 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
           </FormField>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <DecimalInput
+        <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-3">
+          <DecimalFormField
             id="profile-height"
             label="Altura (cm)"
             value={heightCm}
             onChange={setHeightCm}
           />
-          <DecimalInput
+          <DecimalFormField
             id="profile-weight"
             label="Peso (kg)"
             value={weightKg}
             onChange={setWeightKg}
           />
-          <DecimalInput
+          <DecimalFormField
             id="profile-target"
             label="Meta (kg)"
             value={targetWeightKg}
@@ -244,34 +248,24 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
           </Select>
         </FormField>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
           <FormField id="profile-frequency" label="Treinos por semana">
-            <Input
+            <IntegerInput
               id="profile-frequency"
-              type="number"
               min={1}
               max={7}
               value={weeklyFrequency}
-              onChange={(event) => {
-                if (Number.isFinite(event.currentTarget.valueAsNumber)) {
-                  setWeeklyFrequency(event.currentTarget.valueAsNumber);
-                }
-              }}
+              onValueChange={setWeeklyFrequency}
               required
             />
           </FormField>
           <FormField id="profile-duration" label="Duracao (min)">
-            <Input
+            <IntegerInput
               id="profile-duration"
-              type="number"
               min={5}
               max={480}
               value={sessionMinutes}
-              onChange={(event) => {
-                if (Number.isFinite(event.currentTarget.valueAsNumber)) {
-                  setSessionMinutes(event.currentTarget.valueAsNumber);
-                }
-              }}
+              onValueChange={setSessionMinutes}
               required
             />
           </FormField>
@@ -279,7 +273,7 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
 
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-medium">Dias disponiveis</legend>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3 min-[440px]:grid-cols-4">
             {WEEKDAYS.map(([value, label]) => (
               <label
                 key={value}
@@ -329,23 +323,18 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
 
       <Card className="flex flex-col gap-4">
         <CardTitle>Preferencias do treino</CardTitle>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
           <FormField id="profile-rest" label="Descanso padrao (s)">
-            <Input
+            <IntegerInput
               id="profile-rest"
-              type="number"
               min={0}
               max={1800}
               value={restSecondsDefault}
-              onChange={(event) => {
-                if (Number.isFinite(event.currentTarget.valueAsNumber)) {
-                  setRestSecondsDefault(event.currentTarget.valueAsNumber);
-                }
-              }}
+              onValueChange={setRestSecondsDefault}
               required
             />
           </FormField>
-          <DecimalInput
+          <DecimalFormField
             id="profile-increment"
             label="Incremento (kg)"
             value={progressionIncrementKg}
@@ -374,7 +363,7 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
             <option value="UTC">UTC</option>
           </Select>
         </FormField>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
           <FormField id="profile-start" label="Inicio do plano">
             <Input
               id="profile-start"
@@ -405,7 +394,7 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
   );
 }
 
-function DecimalInput({
+function DecimalFormField({
   id,
   label,
   value,
@@ -420,14 +409,7 @@ function DecimalInput({
 }) {
   return (
     <FormField id={id} label={label}>
-      <Input
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value.replace(',', '.'))}
-        inputMode="decimal"
-        pattern="[0-9]+([.,][0-9]{1,2})?"
-        required={required}
-      />
+      <SanitizedDecimalInput id={id} value={value} onValueChange={onChange} required={required} />
     </FormField>
   );
 }

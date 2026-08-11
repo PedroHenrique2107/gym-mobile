@@ -128,7 +128,7 @@
 }
 
 @utility safe-top {
-  padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 1.5rem);
 }
 
 /** Alvo minimo de toque de 44 px, exigido pelo plano de acessibilidade. */
@@ -155,6 +155,7 @@
     -webkit-tap-highlight-color: transparent;
     /* Impede o "pull to refresh" recarregar a pagina no meio de um treino. */
     overscroll-behavior-y: none;
+    overflow-x: clip;
   }
 
   /*

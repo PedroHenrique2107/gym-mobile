@@ -117,6 +117,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Exclui uma conta ou convite pendente
+         * @description Apenas administradores. Remove fotos privadas, usuário do Supabase Auth e perfil com todos os dados dependentes. Recusa a própria conta e o último administrador ativo.
+         */
+        delete: operations["Accounts_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/accounts/{id}/invitations/resend": {
         parameters: {
             query?: never;
@@ -604,7 +624,8 @@ export interface paths {
         delete: operations["Photos_remove"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Corrige a data de uma foto de progresso */
+        patch: operations["Photos_update"];
         trace?: never;
     };
     "/api/v1/progress/photos/{photoId}/confirm": {
@@ -670,7 +691,7 @@ export interface paths {
         };
         /**
          * Recordes por exercicio
-         * @description Maior carga, repeticoes na serie dessa carga, maior numero de repeticoes e maior volume em uma sessao. Series de aquecimento ficam de fora: contá-las faria uma serie leve virar recorde.
+         * @description Maior carga realmente levantada em uma serie, repeticoes feitas nessa serie e maior numero de repeticoes. Nao soma series nem repeticoes para definir recorde. Series de aquecimento ficam de fora.
          */
         get: operations["Progress_records"];
         put?: never;
@@ -690,7 +711,7 @@ export interface paths {
         };
         /**
          * Indicadores de um periodo
-         * @description Sessoes, series de trabalho, volume e minutos treinados no periodo, mais a sequencia semanal. Periodo maximo de 366 dias. A sequencia semanal e contada a partir de hoje e nao depende do periodo consultado — ela responde "quantas semanas seguidas eu treinei", e mudaria conforme o zoom do grafico se fosse limitada ao intervalo.
+         * @description Sessoes, series de trabalho, volume e minutos treinados no periodo, mais a sequencia diaria no fuso do perfil. Periodo maximo de 366 dias. A sequencia nao depende do periodo consultado, e o dia atual vazio ainda nao a interrompe.
          */
         get: operations["Progress_summary"];
         put?: never;
@@ -824,10 +845,18 @@ export interface paths {
          */
         put: operations["Sessions_startOrResume"];
         post?: never;
-        delete?: never;
+        /**
+         * Exclui um treino encerrado
+         * @description Remove definitivamente a sessão do próprio usuário. Exercícios e séries da sessão são apagados pelo cascade do banco; sessões ativas precisam ser encerradas ou abandonadas primeiro.
+         */
+        delete: operations["Sessions_removeCompleted"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Corrige data planejada ou observações de uma sessão concluída
+         * @description Permite corrigir o histórico do próprio usuário sem reabrir o treino. Sessões ativas ou abandonadas continuam protegidas contra esta operação.
+         */
+        patch: operations["Sessions_updateCompleted"];
         trace?: never;
     };
     "/api/v1/sessions/{sessionId}/abandon": {
@@ -861,7 +890,7 @@ export interface paths {
         put?: never;
         /**
          * Conclui a sessao
-         * @description Aceita conclusao parcial: exercicios que ficaram pendentes passam a `SKIPPED`, e o que foi registrado permanece. Depois de encerrada, a sessao nao aceita mais alteracoes — o historico e imutavel, porque volume, recordes e sequencia semanal derivam dele.
+         * @description Aceita conclusao parcial: exercicios que ficaram pendentes passam a `SKIPPED`, e o que foi registrado permanece. Correcoes posteriores ficam restritas aos endpoints explicitos de edicao do historico, que recalculam volume e recordes derivados.
          */
         post: operations["Sessions_complete"];
         delete?: never;
@@ -883,6 +912,26 @@ export interface paths {
          * @description Serve para o que acontece no meio do treino: incluir um exercicio fora da ficha, marcar como pulado, ou trocar por outro. O snapshot do nome e do grupo muscular e tirado no momento da gravacao. Aceita apenas sessao em andamento.
          */
         put: operations["Sessions_upsertExercise"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{sessionId}/exercises/{sessionExerciseId}/sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Salva todas as séries de um exercício de uma vez
+         * @description Substitui atomicamente as séries do exercício. Em sessão ativa conclui o exercício; em sessão concluída corrige o histórico e recalcula volume e recordes derivados.
+         */
+        put: operations["Sessions_replaceExerciseSets"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1336,17 +1385,28 @@ export interface components {
             /** @description Maior numero de repeticoes em uma serie. */
             maxReps: number;
             /**
-             * @description Maior volume em uma sessao.
-             * @example 1800.00
-             */
-            maxSessionVolumeKg: string;
-            /**
              * @description Maior carga levantada.
              * @example 80.00
              */
             maxWeightKg: string;
             /** @description Repeticoes na serie de maior carga. */
             maxWeightReps: number;
+        };
+        ExerciseSetInput: {
+            /** Format: date-time */
+            clientCompletedAt?: string;
+            /**
+             * Format: uuid
+             * @description Identificador estável escolhido pelo cliente.
+             */
+            id: string;
+            /** @default false */
+            isWarmup: boolean;
+            notes?: string | null;
+            reps: number;
+            setNumber: number;
+            /** @example 62.50 */
+            weightKg: string;
         };
         ExerciseSummaryResponse: {
             difficulty: components["schemas"]["Difficulty"];
@@ -1661,6 +1721,8 @@ export interface components {
             abandonedSessions: number;
             /** @description Sessoes concluidas no periodo. */
             completedSessions: number;
+            /** @description Dias consecutivos com ao menos um treino concluido no fuso do perfil. O dia atual vazio ainda não interrompe a sequência. */
+            dailyStreak: number;
             /** Format: date */
             from: string;
             /** Format: date */
@@ -1672,8 +1734,6 @@ export interface components {
              * @example 48250.00
              */
             totalVolumeKg: string;
-            /** @description Semanas consecutivas com ao menos um treino concluido, contadas de tras para frente a partir da semana atual. */
-            weeklyStreak: number;
             /** @description Series de trabalho, sem contar aquecimento. */
             workingSets: number;
         };
@@ -1741,6 +1801,9 @@ export interface components {
         ReorderWorkoutsRequest: {
             /** @description Todas as fichas nao arquivadas, na ordem desejada. */
             workoutIds: string[];
+        };
+        ReplaceExerciseSetsRequest: {
+            sets: components["schemas"]["ExerciseSetInput"][];
         };
         RequiredConsentResponse: {
             /** @description Se o usuario autenticado ja aceitou esta versao. */
@@ -2069,6 +2132,11 @@ export interface components {
             /** @example 82.40 */
             weightKg?: string | null;
         };
+        UpdateCompletedSessionRequest: {
+            notes?: string | null;
+            /** Format: date */
+            plannedDate?: string | null;
+        };
         UpdateExerciseRequest: {
             alternativeIds?: string[];
             cautions?: string | null;
@@ -2134,6 +2202,13 @@ export interface components {
             weeklyFrequency?: number;
             /** @example 82.40 */
             weightKg?: string | null;
+        };
+        UpdateProgressPhotoRequest: {
+            /**
+             * Format: date
+             * @example 2026-08-09
+             */
+            capturedOn: string;
         };
         UpdateWorkoutRequest: {
             /** @description Arquiva ou desarquiva a ficha. Arquivada nao aparece na lista nem pode ser agendada, e o historico continua intacto. */
@@ -2707,6 +2782,97 @@ export interface operations {
             };
             /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Accounts_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5489,6 +5655,115 @@ export interface operations {
             };
         };
     };
+    Photos_update: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Versao conhecida do recurso, como devolvida no ETag do GET. Aceita `"3"`, `3` ou `W/"3"`. Curinga `*` e recusado, porque significaria aceitar sobrescrever qualquer versao. */
+                "If-Match": string;
+            };
+            path: {
+                photoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProgressPhotoRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressPhotoResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Alteracao enviada sem informar a versao conhecida do recurso em If-Match. */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     Photos_confirm: {
         parameters: {
             query?: never;
@@ -6637,6 +6912,185 @@ export interface operations {
             };
         };
     };
+    Sessions_removeCompleted: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Sessions_updateCompleted: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCompletedSessionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionDetailResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     Sessions_abandon: {
         parameters: {
             query?: never;
@@ -6868,6 +7322,104 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["UpsertSessionExerciseRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionDetailResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Sessions_replaceExerciseSets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionExerciseId: string;
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceExerciseSetsRequest"];
             };
         };
         responses: {

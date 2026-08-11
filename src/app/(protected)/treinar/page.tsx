@@ -14,9 +14,7 @@ export default function TreinarPage() {
       <div className="flex flex-col gap-8">
         <TrainingSession />
         <WorkoutManager />
-        <div className="border-t border-border pt-8">
-          <ExerciseLibrary />
-        </div>
+        <ExerciseLibrary />
       </div>
     </>
   );

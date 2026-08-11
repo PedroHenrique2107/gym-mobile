@@ -1,8 +1,13 @@
 import createClient, { type Middleware } from 'openapi-fetch';
 
-import { env } from '@/lib/config/env';
+import {
+  describeDiagnosticError,
+  describeRequestUrl,
+  logDiagnostic,
+} from '@/lib/diagnostics/logger';
 
 import type { paths } from './generated/types';
+import { resolveApiBaseUrl } from './base-url';
 import { ApiError, toApiError, toNetworkError } from './problem';
 
 /**
@@ -40,6 +45,15 @@ let tokenProvider: TokenProvider | null = null;
 let sessionRefresher: SessionRefresher | null = null;
 let onSessionExpired: SessionExpiredHandler | null = null;
 
+interface RequestTrace {
+  readonly startedAt: number;
+  readonly method: string;
+  readonly requestOrigin?: string;
+  readonly requestPath?: string;
+}
+
+const requestTraces = new Map<string, RequestTrace>();
+
 export function setTokenProvider(provider: TokenProvider | null): void {
   tokenProvider = provider;
 }
@@ -74,12 +88,23 @@ async function fetchWithRefresh(input: Request): Promise<Response> {
     return response;
   }
 
+  logDiagnostic('warn', 'api', 'session_refresh.started', {
+    requestId: input.headers.get('x-request-id'),
+    method: input.method,
+    ...describeRequestUrl(input.url),
+  });
+
   const freshToken = await sessionRefresher();
 
   if (!freshToken) {
     // A renovação falhou: a sessão acabou de verdade. Avisar a aplicação é o
     // que permite limpar o cache e voltar ao login em vez de deixar a interface
     // repetindo chamadas que nunca vão funcionar.
+    logDiagnostic('error', 'api', 'session_refresh.failed', {
+      requestId: input.headers.get('x-request-id'),
+      method: input.method,
+      ...describeRequestUrl(input.url),
+    });
     onSessionExpired?.();
     return response;
   }
@@ -92,6 +117,18 @@ async function fetchWithRefresh(input: Request): Promise<Response> {
   retried.headers.set(RETRIED_HEADER, '1');
 
   const retryResponse = await fetch(retried);
+
+  logDiagnostic(
+    retryResponse.status === 401 ? 'error' : 'info',
+    'api',
+    'session_refresh.finished',
+    {
+      requestId: input.headers.get('x-request-id'),
+      method: input.method,
+      retryStatus: retryResponse.status,
+      ...describeRequestUrl(input.url),
+    },
+  );
 
   if (retryResponse.status === 401) {
     // Token novo e ainda recusado: o problema não é expiração. Pode ser conta
@@ -122,6 +159,8 @@ const authMiddleware: Middleware = {
       request.headers.set('x-request-id', crypto.randomUUID());
     }
 
+    startRequestTrace(request);
+
     return request;
   },
 };
@@ -134,7 +173,9 @@ const authMiddleware: Middleware = {
  * passam por aqui, para que a interface trate uma so classe de falha.
  */
 const errorMiddleware: Middleware = {
-  async onResponse({ response }) {
+  async onResponse({ request, response }) {
+    finishRequestTrace(request, response);
+
     if (response.ok) {
       return response;
     }
@@ -142,16 +183,70 @@ const errorMiddleware: Middleware = {
     throw await toApiError(response);
   },
 
-  onError({ error }) {
+  onError({ error, request }) {
     // Um `ApiError` lançado por `onResponse` reentra aqui; repassar sem
     // envolver evita transformar um 422 em erro de rede.
     if (error instanceof ApiError) {
       return error;
     }
 
-    return toNetworkError(error);
+    const networkError = toNetworkError(error);
+    failRequestTrace(request, networkError);
+    return networkError;
   },
 };
+
+function startRequestTrace(request: Request): void {
+  const requestId = request.headers.get('x-request-id');
+  if (!requestId) return;
+
+  const url = describeRequestUrl(request.url);
+  requestTraces.set(requestId, {
+    startedAt: Date.now(),
+    method: request.method,
+    requestOrigin: typeof url['requestOrigin'] === 'string' ? url['requestOrigin'] : undefined,
+    requestPath: typeof url['requestPath'] === 'string' ? url['requestPath'] : undefined,
+  });
+
+  logDiagnostic('info', 'api', 'request.started', {
+    requestId,
+    method: request.method,
+    authenticated: request.headers.has('authorization'),
+    ...url,
+  });
+}
+
+function finishRequestTrace(request: Request, response: Response): void {
+  const requestId = request.headers.get('x-request-id');
+  const trace = requestId ? requestTraces.get(requestId) : undefined;
+  if (requestId) requestTraces.delete(requestId);
+
+  logDiagnostic(response.ok ? 'info' : 'warn', 'api', 'request.finished', {
+    requestId,
+    responseRequestId: response.headers.get('x-request-id'),
+    method: trace?.method ?? request.method,
+    status: response.status,
+    durationMs: trace ? Date.now() - trace.startedAt : undefined,
+    requestOrigin: trace?.requestOrigin,
+    requestPath: trace?.requestPath,
+  });
+}
+
+function failRequestTrace(request: Request, error: ApiError): void {
+  const requestId = request.headers.get('x-request-id');
+  const trace = requestId ? requestTraces.get(requestId) : undefined;
+  if (requestId) requestTraces.delete(requestId);
+
+  logDiagnostic('warn', 'api', 'request.network_failed', {
+    requestId,
+    method: trace?.method ?? request.method,
+    durationMs: trace ? Date.now() - trace.startedAt : undefined,
+    online: typeof navigator === 'undefined' ? undefined : navigator.onLine,
+    requestOrigin: trace?.requestOrigin,
+    requestPath: trace?.requestPath,
+    ...describeDiagnosticError(error),
+  });
+}
 
 /**
  * Cliente HTTP tipado pelo contrato do `gym-service`.
@@ -163,7 +258,7 @@ const errorMiddleware: Middleware = {
  */
 export const apiClient = createClient<paths>({
   // Apenas a origem: os caminhos completos vem do contrato.
-  baseUrl: env.apiUrl,
+  baseUrl: resolveApiBaseUrl(),
   headers: { 'content-type': 'application/json' },
   // Nao envia cookies: a API autentica por Bearer, e os cookies de sessao do
   // Supabase pertencem a origem do Next.js.

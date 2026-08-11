@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MailPlus, RefreshCw, Shield } from 'lucide-react';
+import { MailPlus, RefreshCw, Shield, Trash2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { apiClient } from '@/lib/api/client';
 import type { components } from '@/lib/api/generated/types';
-import { describeApiError, requireApiData } from '@/lib/api/result';
+import { describeApiError, requireApiData, requireApiSuccess } from '@/lib/api/result';
 
 import { useProfile } from '@/features/profile/use-profile';
 
@@ -101,6 +101,20 @@ export function AdminAccountsPanel() {
       toast.error(describeApiError(error, 'Nao foi possivel alterar a permissao.')),
   });
 
+  const remove = useMutation({
+    mutationFn: async (account: Account) => {
+      const { error } = await apiClient.DELETE('/api/v1/admin/accounts/{id}', {
+        params: { path: { id: account.id } },
+      });
+      requireApiSuccess(error, 'excluir a conta');
+    },
+    onSuccess: async () => {
+      await refresh();
+      toast.success('Conta, acesso e dados dependentes foram excluídos.');
+    },
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível excluir a conta.')),
+  });
+
   if (profile.data?.role !== 'ADMIN') return null;
   const adminProfile = profile.data;
 
@@ -182,7 +196,7 @@ export function AdminAccountsPanel() {
                 <Badge variant={statusVariant(account.status)}>{statusLabel(account.status)}</Badge>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
                 <Select
                   aria-label={`Permissao de ${account.fullName ?? account.id}`}
                   value={account.role}
@@ -236,6 +250,24 @@ export function AdminAccountsPanel() {
                   Ativar conta
                 </Button>
               ) : null}
+
+              <Button
+                variant="destructive"
+                disabled={isSelf || remove.isPending}
+                onClick={() => {
+                  const label = account.status === 'PENDING_INVITE' ? 'este convite' : 'esta conta';
+                  if (
+                    window.confirm(
+                      `Excluir definitivamente ${label}? O acesso, os treinos, as medidas e as fotos serão removidos.`,
+                    )
+                  ) {
+                    remove.mutate(account);
+                  }
+                }}
+              >
+                <Trash2 />
+                {account.status === 'PENDING_INVITE' ? 'Excluir convite' : 'Excluir conta'}
+              </Button>
             </Card>
           );
         })}

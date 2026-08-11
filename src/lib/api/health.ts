@@ -1,5 +1,6 @@
-import { env } from '@/lib/config/env';
+import { describeDiagnosticError, logDiagnostic } from '@/lib/diagnostics/logger';
 
+import { resolveApiBaseUrl } from './base-url';
 import { toApiError, toNetworkError } from './problem';
 
 /**
@@ -61,20 +62,55 @@ export async function fetchApiReadiness(): Promise<ApiReadiness> {
     throw await toApiError(response);
   }
 
+  logDiagnostic(body.status === 'not_ready' ? 'warn' : 'info', 'infra', 'readiness.result', {
+    status: body.status,
+    checks: body.checks.map((check) => `${check.name}:${check.status}`).join(','),
+    requestId: response.headers.get('x-request-id'),
+  });
+
   return body;
 }
 
 async function requestInfra(path: string): Promise<Response> {
+  const apiUrl = resolveApiBaseUrl();
+  const startedAt = Date.now();
+  logDiagnostic('info', 'infra', 'request.started', {
+    method: 'GET',
+    requestOrigin: apiUrl,
+    requestPath: path,
+    online: typeof navigator === 'undefined' ? undefined : navigator.onLine,
+  });
+
   try {
-    return await fetch(`${env.apiUrl}${path}`, {
+    const response = await fetch(`${apiUrl}${path}`, {
       method: 'GET',
       headers: { accept: 'application/json' },
       credentials: 'omit',
       cache: 'no-store',
       signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
     });
+
+    logDiagnostic(response.ok ? 'info' : 'warn', 'infra', 'request.finished', {
+      method: 'GET',
+      requestOrigin: apiUrl,
+      requestPath: path,
+      status: response.status,
+      durationMs: Date.now() - startedAt,
+      requestId: response.headers.get('x-request-id'),
+    });
+
+    return response;
   } catch (cause) {
-    throw toNetworkError(cause);
+    const error = toNetworkError(cause);
+    logDiagnostic('warn', 'infra', 'request.failed', {
+      method: 'GET',
+      requestOrigin: apiUrl,
+      requestPath: path,
+      durationMs: Date.now() - startedAt,
+      online: typeof navigator === 'undefined' ? undefined : navigator.onLine,
+      ...describeDiagnosticError(error),
+    });
+    throw error;
   }
 }
 

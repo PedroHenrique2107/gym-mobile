@@ -6,6 +6,7 @@ import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
 import { FormField } from '@/components/forms/form-field';
+import { DecimalInput } from '@/components/forms/numeric-input';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -147,18 +148,16 @@ export function MeasurementsPanel() {
               required
             />
           </FormField>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
             {METRICS.map(([key, label, unit]) => (
               <FormField key={key} id={`measurement-${key}`} label={`${label} (${unit})`}>
-                <Input
+                <DecimalInput
                   id={`measurement-${key}`}
-                  inputMode="decimal"
-                  pattern="[0-9]+([.,][0-9]{1,2})?"
                   value={form[key]}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     setForm((current) => ({
                       ...current,
-                      [key]: event.target.value.replace(',', '.'),
+                      [key]: value,
                     }))
                   }
                 />
@@ -175,7 +174,7 @@ export function MeasurementsPanel() {
               }
             />
           </FormField>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
             {editing ? (
               <Button
                 variant="outline"
