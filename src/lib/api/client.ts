@@ -259,7 +259,10 @@ function failRequestTrace(request: Request, error: ApiError): void {
 export const apiClient = createClient<paths>({
   // Apenas a origem: os caminhos completos vem do contrato.
   baseUrl: resolveApiBaseUrl(),
-  headers: { 'content-type': 'application/json' },
+  // Sem `content-type` fixo aqui: o `openapi-fetch` ja define esse header
+  // sozinho quando a chamada tem `body`. Um valor fixo se sobrepoe a essa
+  // logica e manda `application/json` mesmo em requisicoes sem corpo (DELETE,
+  // reenvio de convite) — o Fastify rejeita corpo vazio com esse content-type.
   // Nao envia cookies: a API autentica por Bearer, e os cookies de sessao do
   // Supabase pertencem a origem do Next.js.
   credentials: 'omit',
