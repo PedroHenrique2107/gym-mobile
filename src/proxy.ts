@@ -9,6 +9,11 @@ import {
   isPublicRoute,
   safeRedirectTarget,
 } from '@/lib/auth/routes';
+import {
+  describeDiagnosticError,
+  describeRequestUrl,
+  logDiagnostic,
+} from '@/lib/diagnostics/logger';
 
 /**
  * Proteção de rotas e renovação de sessão.
@@ -27,8 +32,13 @@ import {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // A resposta é criada antes da consulta ao Supabase porque os cookies de
-  // sessão renovada são escritos nela durante `getUser()`.
+  logDiagnostic('debug', 'proxy', 'request.received', {
+    method: request.method,
+    ...describeRequestUrl(request.url),
+  });
+
+  // A resposta é criada antes da consulta ao Supabase porque uma renovação
+  // necessária durante `getClaims()` precisa escrever os novos cookies nela.
   let response = NextResponse.next({ request });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -38,7 +48,17 @@ export async function proxy(request: NextRequest) {
   // privadas é o comportamento correto: liberá-las "porque a autenticação não
   // está configurada" seria exatamente o tipo de exceção que vira brecha.
   if (!supabaseUrl || !supabaseKey) {
+    logDiagnostic('warn', 'proxy', 'auth.unconfigured', {
+      routePublic: isPublicRoute(pathname),
+      ...describeRequestUrl(request.url),
+    });
     return isPublicRoute(pathname) ? response : redirectToLogin(request);
+  }
+
+  // Estas paginas publicas nao dependem de saber se existe uma sessao. A
+  // landing e o login continuam validando para redirecionar quem ja entrou.
+  if (isPublicRoute(pathname) && pathname !== LOGIN_ROUTE && pathname !== '/') {
+    return response;
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
@@ -62,21 +82,45 @@ export async function proxy(request: NextRequest) {
   });
 
   /**
-   * `getUser()` e não `getSession()`.
-   *
-   * `getSession()` apenas lê o cookie e confia nele. Como o cookie chega do
-   * navegador, isso permitiria a qualquer pessoa forjar uma sessão editando o
-   * próprio cookie. `getUser()` valida o token contra o Supabase — é uma chamada
-   * de rede a mais por requisição, e é o que sustenta toda a proteção.
+   * `getClaims()` valida criptograficamente o JWT e renova a sessão próxima do
+   * vencimento. Com chave assimétrica, a JWKS é buscada uma vez e mantida em
+   * cache, removendo a chamada ao Auth que `getUser()` faria em cada navegação.
+   * `getSession()` sozinho continua inadequado aqui porque apenas leria o cookie.
    */
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const authStartedAt = Date.now();
+  let authenticated = false;
+
+  try {
+    // Valida assinatura e expiracao. Com JWT assimetrico, a JWKS fica em cache
+    // e a verificacao ocorre localmente por WebCrypto, sem confiar no cookie.
+    const result = await supabase.auth.getClaims();
+    authenticated = Boolean(result.data?.claims.sub) && !result.error;
+    logDiagnostic('info', 'proxy', 'auth.validated', {
+      authenticated,
+      durationMs: Date.now() - authStartedAt,
+      ...describeRequestUrl(request.url),
+    });
+  } catch (error) {
+    logDiagnostic('error', 'proxy', 'auth.validation_failed', {
+      durationMs: Date.now() - authStartedAt,
+      ...describeRequestUrl(request.url),
+      ...describeDiagnosticError(error),
+    });
+    throw error;
+  }
 
   // Já autenticado tentando entrar de novo: manda para dentro do app. Exceto nas
   // rotas de fluxo, onde a sessão é justamente o que permite concluir a ação.
-  if (user && (pathname === LOGIN_ROUTE || pathname === '/') && !isAuthFlowRoute(pathname)) {
+  if (
+    authenticated &&
+    (pathname === LOGIN_ROUTE || pathname === '/') &&
+    !isAuthFlowRoute(pathname)
+  ) {
     const destino = safeRedirectTarget(request.nextUrl.searchParams.get(REDIRECT_PARAM));
+    logDiagnostic('info', 'proxy', 'redirect.authenticated_user', {
+      destinationPath: describeRequestUrl(new URL(destino, request.url))['requestPath'],
+      ...describeRequestUrl(request.url),
+    });
     return NextResponse.redirect(new URL(destino, request.url));
   }
 
@@ -84,7 +128,10 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  if (!user) {
+  if (!authenticated) {
+    logDiagnostic('info', 'proxy', 'redirect.unauthenticated_user', {
+      ...describeRequestUrl(request.url),
+    });
     return redirectToLogin(request);
   }
 
@@ -119,6 +166,6 @@ export const config = {
    * em cada um deles seria uma chamada de rede por asset.
    */
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons/|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)',
+    '/((?!_next/|favicon.ico|manifest.webmanifest|sw.js|icons/|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)',
   ],
 };

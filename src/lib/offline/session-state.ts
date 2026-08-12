@@ -1,4 +1,10 @@
-import type { SessionDetail, StartSessionRequest, UpsertSetRequest, WorkoutDetail } from './types';
+import type {
+  ReplaceExerciseSetsRequest,
+  SessionDetail,
+  StartSessionRequest,
+  UpsertSetRequest,
+  WorkoutDetail,
+} from './types';
 
 export function createLocalSession(
   workout: WorkoutDetail,
@@ -102,6 +108,36 @@ export function removeLocalSet(session: SessionDetail, setId: string): SessionDe
       ...exercise,
       sets: exercise.sets.filter((set) => set.id !== setId),
     })),
+  });
+}
+
+export function replaceLocalExerciseSets(
+  session: SessionDetail,
+  sessionExerciseId: string,
+  body: ReplaceExerciseSetsRequest,
+): SessionDetail {
+  return recalculate({
+    ...session,
+    exercises: session.exercises.map((exercise) =>
+      exercise.id !== sessionExerciseId
+        ? exercise
+        : {
+            ...exercise,
+            status: body.sets.length > 0 ? ('DONE' as const) : exercise.status,
+            sets: body.sets.map((set) => ({
+              id: set.id,
+              sessionExerciseId,
+              setNumber: set.setNumber,
+              weightKg: set.weightKg,
+              reps: set.reps,
+              isWarmup: set.isWarmup,
+              rpe: null,
+              painLevel: null,
+              notes: set.notes ?? null,
+              completedAt: set.clientCompletedAt ?? new Date().toISOString(),
+            })),
+          },
+    ),
   });
 }
 

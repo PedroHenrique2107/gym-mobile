@@ -4,7 +4,7 @@ PWA mobile-first do GymFlow. Cuida da interface, da sessão do usuário, do cons
 
 > **Estado atual: fases M1–M4, núcleo não bloqueado da M5 e implementação local da M6 concluídos.**
 > O app possui autenticação por convite, administração de contas, perfil/onboarding, biblioteca, fichas, agenda, treino online e offline, progresso, medidas, fotos privadas, exportação, instalação PWA e configuração de notificações usando a API real.
-> A M6 ainda exige validação em Android/iPhone reais e entrega Web Push com VAPID configurado. A M7 já possui CI, acessibilidade automatizada, HSTS, smoke de preview e [runbook de produção](docs/PRODUCTION_RUNBOOK.md), mas o ambiente externo ainda não foi publicado. Exclusão de conta, consentimentos e retenção aguardam texto e decisão jurídica. Nenhuma tela usa dados fictícios. Consulte [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md) para o escopo completo.
+> A M6 ainda exige validação em Android/iPhone reais e entrega Web Push com VAPID configurado. A M7 já possui CI, acessibilidade automatizada, HSTS, smoke de preview e [runbook de produção](docs/PRODUCTION_RUNBOOK.md), mas o ambiente externo ainda não foi publicado. Autoexclusão solicitada pelo próprio titular e política de retenção aguardam texto e decisão jurídica; a exclusão administrativa já existe. Nenhuma tela usa dados fictícios. Consulte [PLANO_IMPLEMENTACAO.md](PLANO_IMPLEMENTACAO.md) para o escopo completo.
 
 ## Sumário
 
@@ -34,14 +34,14 @@ O frontend **não** acessa tabelas do PostgreSQL, **não** executa regras críti
 
 - entrar por convite, recuperar/redefinir senha, renovar sessão e sair apagando o cache local;
 - completar e editar dados pessoais, objetivo, rotina, disponibilidade e preferências;
-- pesquisar e filtrar o catálogo, criar/editar e excluir ou arquivar exercícios próprios;
+- abrir o catálogo em modal, pesquisar e filtrar exercícios, criar/editar e excluir ou arquivar exercícios próprios;
 - criar, editar, duplicar, ordenar, arquivar e excluir fichas, com séries, repetições, pausa e observações por exercício;
 - associar fichas aos sete dias, marcar descanso, substituir ou reagendar treinos por data;
-- iniciar ou retomar treino, registrar séries, carga, repetições, RPE, dor e aquecimento, usar a última carga, controlar descanso e concluir ou abandonar a sessão;
-- consultar resumo de 90 dias, histórico recente, recordes e evolução detalhada por exercício;
+- iniciar ou retomar treino, preencher carga e repetições de todas as séries em um único modal, marcar aquecimento, usar a última carga, controlar descanso e concluir ou abandonar a sessão;
+- consultar resumo de 90 dias e ofensiva diária, editar ou excluir treinos concluídos, acompanhar recordes pela maior carga de uma série e evolução detalhada por exercício;
 - registrar, corrigir com controle de versão e excluir peso e medidas corporais, com gráfico real de peso;
-- enviar, validar, abrir por URL temporária e excluir fotos no Storage privado;
-- para administradores, convidar, reenviar convite, ativar/desativar contas e alterar papel dentro do limite de usuários;
+- enviar, validar, corrigir a data, abrir por URL temporária e excluir fotos no Storage privado;
+- para administradores, convidar, reenviar ou excluir convite, ativar/desativar contas, alterar papel e excluir contas com seus dados dependentes;
 - baixar `gymflow-export.json` com os dados reais que a API já mantém;
 - instalar o aplicativo como PWA, abrir uma tela útil sem rede e atualizar o Service Worker sem interromper um treino ativo;
 - continuar um treino sem conexão, persistir operações em ordem e sincronizá-las sem duplicação quando a rede voltar;
@@ -138,7 +138,7 @@ A configuração é validada no import de `@/lib/config/env`, e não no primeiro
 | `/progresso` | Autenticado | Indicadores, sessões, recordes, evolução, medidas e fotos privadas |
 | `/perfil` | Autenticado | Onboarding, edição completa, administração, exportação e logout |
 
-O Proxy do Next protege por exclusão: qualquer rota que não esteja na lista pública exige `getUser()` validado pelo Supabase antes de renderizar. Um `401` na API tenta renovar a sessão uma vez; `403` não desloga o usuário.
+O Proxy do Next protege por exclusão: qualquer rota que não esteja na lista pública exige claims criptograficamente validadas pelo Supabase antes de renderizar. Com JWT assimétrico, `getClaims()` usa a chave pública em cache e evita a ida ao Auth em cada navegação. Um `401` na API tenta renovar a sessão uma vez; `403` não desloga o usuário.
 
 `/status` é público de propósito: é usada justamente quando a autenticação não funciona, e exigir login para diagnosticar seria circular. Ela não expõe dado de usuário — apenas versão, tempo no ar e quais dependências estão configuradas.
 

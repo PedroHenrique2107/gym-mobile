@@ -326,7 +326,7 @@ export function ScheduleManager() {
                 maxLength={300}
               />
             </FormField>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
               <Button
                 variant="outline"
                 disabled={

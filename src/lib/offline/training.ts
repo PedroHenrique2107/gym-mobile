@@ -18,10 +18,17 @@ import {
   createLocalSession,
   finishLocalSession,
   removeLocalSet,
+  replaceLocalExerciseSets,
   setLocalExerciseStatus,
 } from './session-state';
 import { syncOutbox } from './sync';
-import type { FinishSessionRequest, SessionDetail, UpsertSetRequest, WorkoutDetail } from './types';
+import type {
+  FinishSessionRequest,
+  ReplaceExerciseSetsRequest,
+  SessionDetail,
+  UpsertSetRequest,
+  WorkoutDetail,
+} from './types';
 
 type WorkoutList = components['schemas']['WorkoutListResponse'];
 type SetLog = components['schemas']['SetLogResponse'];
@@ -126,6 +133,24 @@ export async function deleteTrainingSet(
   return syncOrLocal(ownerId, operationId, local);
 }
 
+export async function saveTrainingExerciseSets(
+  ownerId: string,
+  session: SessionDetail,
+  sessionExerciseId: string,
+  body: ReplaceExerciseSetsRequest,
+): Promise<OfflineMutationResult> {
+  const local = replaceLocalExerciseSets(session, sessionExerciseId, body);
+  const operationId = `exercise-sets:${sessionExerciseId}`;
+  await writeActiveSession(ownerId, local);
+  await enqueueOperation(ownerId, operationId, {
+    kind: 'REPLACE_EXERCISE_SETS',
+    sessionId: session.id,
+    sessionExerciseId,
+    body,
+  });
+  return syncOrLocal(ownerId, operationId, local);
+}
+
 export async function updateTrainingExercise(
   ownerId: string,
   session: SessionDetail,
@@ -181,18 +206,21 @@ async function getWorkout(ownerId: string, workoutId: string): Promise<WorkoutDe
   }
 }
 
-async function syncOrLocal(
+function syncOrLocal(
   ownerId: string,
   operationId: string,
   local: SessionDetail,
-): Promise<OfflineMutationResult> {
-  const result = await syncOutbox(ownerId);
-  if (result.blocked && result.error instanceof Error) throw result.error;
-  if (result.blocked) throw new Error('A sincronizacao foi bloqueada por uma resposta invalida.');
-  if (result.pending > 0) return { session: local, queued: true };
-  const synced = local.status === 'ACTIVE' ? await readActiveSession(ownerId) : null;
-  await removeOperation(operationId, ownerId);
-  return { session: synced ?? local, queued: false };
+): OfflineMutationResult {
+  // A escrita local já é a confirmação visual. A rede sincroniza em segundo
+  // plano e mantém a ordem da outbox; esperar o round-trip aqui fazia cada toque
+  // parecer travado, sobretudo no 4G. O identificador continua no argumento
+  // para deixar explícito que a operação correspondente já foi enfileirada.
+  void operationId;
+  void syncOutbox(ownerId, { force: true }).then(() => syncOutbox(ownerId, { force: true }));
+  return {
+    session: local,
+    queued: typeof navigator !== 'undefined' ? !navigator.onLine : true,
+  };
 }
 
 function isRetryable(error: unknown): boolean {

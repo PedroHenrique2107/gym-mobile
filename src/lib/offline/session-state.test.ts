@@ -6,6 +6,7 @@ import {
   createLocalSession,
   finishLocalSession,
   removeLocalSet,
+  replaceLocalExerciseSets,
   setLocalExerciseStatus,
 } from './session-state';
 
@@ -126,5 +127,35 @@ describe('offline session state', () => {
       durationMinutes: 45,
       notes: 'Treino concluido offline',
     });
+  });
+
+  it('substitui todas as series e recalcula o resumo imediatamente', () => {
+    const { session } = createSession();
+    const exerciseId = session.exercises[0]!.id;
+    const result = replaceLocalExerciseSets(session, exerciseId, {
+      sets: [
+        {
+          id: '60000000-0000-4000-8000-000000000001',
+          setNumber: 1,
+          weightKg: '20.00',
+          reps: 10,
+          isWarmup: true,
+          clientCompletedAt: '2026-08-09T12:05:00.000Z',
+        },
+        {
+          id: '60000000-0000-4000-8000-000000000002',
+          setNumber: 2,
+          weightKg: '52.50',
+          reps: 8,
+          isWarmup: false,
+          clientCompletedAt: '2026-08-09T12:08:00.000Z',
+        },
+      ],
+    });
+
+    expect(result.exercises[0]).toMatchObject({ status: 'DONE' });
+    expect(result.exercises[0]?.sets).toHaveLength(2);
+    expect(result.exercises[0]?.sets[1]).toMatchObject({ rpe: null, painLevel: null });
+    expect(result).toMatchObject({ workingSets: 1, totalVolumeKg: '420.00' });
   });
 });

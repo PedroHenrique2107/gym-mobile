@@ -15,7 +15,7 @@ import { BottomNav } from '@/components/navigation/bottom-nav';
 export default function ProtectedLayout({ children }: { readonly children: ReactNode }) {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
-      <main id="conteudo" className="flex-1 px-5 pb-28 pt-6">
+      <main id="conteudo" className="safe-top min-w-0 flex-1 overflow-x-clip px-4 pb-28">
         {children}
       </main>
       <BottomNav />

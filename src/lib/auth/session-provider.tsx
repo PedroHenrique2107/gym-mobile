@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
 
 import { isAuthConfigured } from '@/lib/config/env';
+import { describeDiagnosticError, logDiagnostic } from '@/lib/diagnostics/logger';
 import { clearOfflineUser } from '@/lib/offline/repository';
 import { cancelOutboxSync, syncOutbox } from '@/lib/offline/sync';
 
@@ -25,15 +26,27 @@ export function SessionProvider({ children }: { readonly children: ReactNode }) 
 
   useEffect(() => {
     if (!isAuthConfigured) {
+      logDiagnostic('warn', 'auth', 'provider.unconfigured');
       return;
     }
+
+    logDiagnostic('info', 'auth', 'provider.started');
 
     const handleExpired = () => {
       // A sessão acabou de forma irrecuperável. Limpar e voltar ao login é
       // melhor que deixar a interface repetindo chamadas que nunca funcionarão.
-      void signOutAndClear(queryClient).then(() => {
-        router.replace(LOGIN_ROUTE);
-      });
+      logDiagnostic('error', 'auth', 'session.expired');
+      void signOutAndClear(queryClient)
+        .then(() => {
+          logDiagnostic('info', 'auth', 'session.local_data_cleared');
+          router.replace(LOGIN_ROUTE);
+        })
+        .catch((error: unknown) => {
+          logDiagnostic('error', 'auth', 'session.cleanup_failed', {
+            ...describeDiagnosticError(error),
+          });
+          router.replace(LOGIN_ROUTE);
+        });
     };
 
     connectSessionToApi(handleExpired);
@@ -49,25 +62,54 @@ export function SessionProvider({ children }: { readonly children: ReactNode }) 
     let ownerId: string | null = null;
 
     const synchronize = (currentOwnerId: string) => {
-      void syncOutbox(currentOwnerId, { force: true }).then(async () => {
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['sessions'] }),
-          queryClient.invalidateQueries({ queryKey: ['workouts'] }),
-        ]);
-      });
+      logDiagnostic('info', 'offline', 'sync.requested', { online: navigator.onLine });
+      void syncOutbox(currentOwnerId, { force: true })
+        .then(async (result) => {
+          logDiagnostic(result.blocked ? 'warn' : 'info', 'offline', 'sync.finished', {
+            sent: result.sent,
+            pending: result.pending,
+            blocked: result.blocked,
+          });
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['sessions'] }),
+            queryClient.invalidateQueries({ queryKey: ['workouts'] }),
+          ]);
+        })
+        .catch((error: unknown) => {
+          logDiagnostic('error', 'offline', 'sync.unexpected_failure', {
+            ...describeDiagnosticError(error),
+          });
+        });
     };
 
-    void supabase.auth.getSession().then(({ data: current }) => {
-      ownerId = current.session?.user.id ?? null;
-      if (ownerId && navigator.onLine) synchronize(ownerId);
-    });
+    void supabase.auth
+      .getSession()
+      .then(({ data: current }) => {
+        ownerId = current.session?.user.id ?? null;
+        logDiagnostic('info', 'auth', 'session.initialized', {
+          authenticated: ownerId !== null,
+          online: navigator.onLine,
+        });
+        if (ownerId && navigator.onLine) synchronize(ownerId);
+      })
+      .catch((error: unknown) => {
+        logDiagnostic('error', 'auth', 'session.initialization_failed', {
+          ...describeDiagnosticError(error),
+        });
+      });
 
     const handleOnline = () => {
+      logDiagnostic('info', 'network', 'browser.online');
       if (ownerId) synchronize(ownerId);
     };
     window.addEventListener('gymflow:online', handleOnline);
 
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      logDiagnostic(event === 'SIGNED_OUT' ? 'warn' : 'info', 'auth', 'session.state_changed', {
+        authEvent: event,
+        authenticated: Boolean(session?.user),
+      });
+
       if (event === 'SIGNED_OUT') {
         const previousOwnerId = ownerId;
         ownerId = null;
@@ -90,6 +132,7 @@ export function SessionProvider({ children }: { readonly children: ReactNode }) 
     });
 
     return () => {
+      logDiagnostic('debug', 'auth', 'provider.stopped');
       window.removeEventListener('gymflow:online', handleOnline);
       data.subscription.unsubscribe();
       disconnectSessionFromApi();

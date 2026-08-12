@@ -106,6 +106,7 @@ export default tseslint.config(
      */
     files: [
       'src/lib/config/**/*.ts',
+      'src/lib/diagnostics/**/*.ts',
       'src/proxy.ts',
       '*.config.ts',
       '*.config.mjs',

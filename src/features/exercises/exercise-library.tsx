@@ -1,8 +1,8 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, Pencil, Plus, Search } from 'lucide-react';
-import { useDeferredValue, useState, type FormEvent } from 'react';
+import { Archive, BookOpen, Pencil, Plus, Search, X } from 'lucide-react';
+import { useDeferredValue, useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
 import { FormField } from '@/components/forms/form-field';
@@ -60,6 +60,7 @@ const EQUIPMENT: readonly [Equipment, string][] = [
 
 export function ExerciseLibrary() {
   const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const deferredSearch = useDeferredValue(search);
   const [muscle, setMuscle] = useState<MuscleGroup | ''>('');
@@ -81,6 +82,7 @@ export function ExerciseLibrary() {
 
   const exercises = useQuery({
     queryKey: exerciseKeys.list(filters),
+    enabled: open,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/api/v1/exercises', {
         params: { query: filters },
@@ -126,150 +128,221 @@ export function ExerciseLibrary() {
     setEditing(null);
   }
 
+  function closeCatalog(): void {
+    closeForm();
+    setOpen(false);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
   return (
-    <section aria-labelledby="exercise-library-title" className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 id="exercise-library-title" className="text-lg font-semibold">
-            Biblioteca
-          </h2>
-          <p className="text-sm text-muted-foreground">Catalogo global e seus exercicios.</p>
+    <>
+      <Card className="flex flex-col gap-4 bg-gradient-to-br from-primary/12 to-transparent min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <BookOpen className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <CardTitle>Catálogo de exercícios</CardTitle>
+            <CardDescription className="mt-1">
+              Consulte opções ou gerencie seus exercícios personalizados.
+            </CardDescription>
+          </div>
         </div>
-        <Button
-          size="sm"
-          onClick={() => {
-            setCreating(true);
-            setEditing(null);
-          }}
-        >
-          <Plus /> Novo
+        <Button className="shrink-0" onClick={() => setOpen(true)}>
+          <BookOpen /> Abrir catálogo
         </Button>
-      </div>
-
-      {creating || editing ? (
-        <ExerciseForm exercise={editing} onCancel={closeForm} onSaved={closeForm} />
-      ) : null}
-
-      <Card className="flex flex-col gap-3">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-3.5 size-4 text-muted-foreground" />
-          <Input
-            aria-label="Buscar exercicio"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="pl-9"
-            placeholder="Buscar por nome"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Select
-            aria-label="Filtrar por grupo muscular"
-            value={muscle}
-            onChange={(event) => setMuscle(event.target.value as MuscleGroup | '')}
-          >
-            <option value="">Todos os musculos</option>
-            {MUSCLES.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
-          <Select
-            aria-label="Filtrar por equipamento"
-            value={equipment}
-            onChange={(event) => setEquipment(event.target.value as Equipment | '')}
-          >
-            <option value="">Todo equipamento</option>
-            {EQUIPMENT.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
-          <Select
-            aria-label="Filtrar por origem"
-            value={origin}
-            onChange={(event) => setOrigin(event.target.value as typeof origin)}
-          >
-            <option value="">Todas as origens</option>
-            <option value="global">Catalogo</option>
-            <option value="custom">Meus exercicios</option>
-          </Select>
-          <label className="tap flex items-center gap-2 rounded-lg border border-input px-3 text-sm">
-            <input
-              type="checkbox"
-              checked={includeArchived}
-              onChange={(event) => setIncludeArchived(event.target.checked)}
-            />
-            Arquivados
-          </label>
-        </div>
       </Card>
 
-      {exercises.isPending ? <Card aria-busy="true">Carregando biblioteca...</Card> : null}
-      {exercises.isError ? (
-        <Card>
-          <ErrorState
-            description={describeApiError(exercises.error, 'Falha ao carregar a biblioteca.')}
-            onRetry={() => void exercises.refetch()}
-          />
-        </Card>
-      ) : null}
-      {exercises.data?.data.length === 0 ? (
-        <Card>
-          <EmptyState
-            title="Nenhum exercicio encontrado"
-            description="Altere os filtros ou crie um exercicio personalizado."
-          />
-        </Card>
-      ) : null}
-
-      <div className="flex flex-col gap-2">
-        {exercises.data?.data.map((exercise) => (
-          <Card key={exercise.id} className="flex items-center justify-between gap-3 py-3">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <CardTitle className="truncate">{exercise.name}</CardTitle>
-                <Badge variant={exercise.isGlobal ? 'neutral' : 'primary'}>
-                  {exercise.isGlobal ? 'Catalogo' : 'Seu'}
-                </Badge>
-                {exercise.isArchived ? <Badge variant="warning">Arquivado</Badge> : null}
+      {open ? (
+        <div className="fixed inset-0 z-100 flex items-end justify-center bg-black/75 min-[600px]:items-center min-[600px]:p-5">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="exercise-library-title"
+            className="safe-bottom flex max-h-dvh w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl border border-border bg-background shadow-2xl min-[600px]:max-h-[92dvh] min-[600px]:rounded-3xl"
+          >
+            <div className="safe-top flex items-center justify-between gap-3 border-b border-border px-4 pb-3">
+              <div className="min-w-0">
+                <h2 id="exercise-library-title" className="truncate text-lg font-bold">
+                  Catálogo de exercícios
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Pesquise, crie e organize exercícios.
+                </p>
               </div>
-              <CardDescription className="mt-1">
-                {muscleLabel(exercise.primaryMuscle)} · {equipmentLabel(exercise.equipment)} ·{' '}
-                {difficultyLabel(exercise.difficulty)}
-              </CardDescription>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Fechar catálogo"
+                onClick={closeCatalog}
+              >
+                <X />
+              </Button>
             </div>
-            {!exercise.isGlobal ? (
-              <div className="flex shrink-0">
+
+            <section className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold">Exercícios disponíveis</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Catálogo global e seus exercícios.
+                  </p>
+                </div>
                 <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label={`Editar ${exercise.name}`}
-                  disabled={loadingId === exercise.id}
-                  onClick={() => void openEditor(exercise.id)}
-                >
-                  <Pencil />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label={`Excluir ou arquivar ${exercise.name}`}
-                  disabled={remove.isPending}
+                  size="sm"
                   onClick={() => {
-                    if (window.confirm(`Excluir ou arquivar "${exercise.name}"?`)) {
-                      remove.mutate(exercise);
-                    }
+                    setCreating(true);
+                    setEditing(null);
                   }}
                 >
-                  <Archive />
+                  <Plus /> Novo
                 </Button>
               </div>
-            ) : null}
-          </Card>
-        ))}
-      </div>
-    </section>
+
+              {creating || editing ? (
+                <ExerciseForm exercise={editing} onCancel={closeForm} onSaved={closeForm} />
+              ) : null}
+
+              <Card className="flex flex-col gap-3">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-3.5 size-4 text-muted-foreground" />
+                  <Input
+                    aria-label="Buscar exercicio"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    className="pl-9"
+                    placeholder="Buscar por nome"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
+                  <Select
+                    aria-label="Filtrar por grupo muscular"
+                    value={muscle}
+                    onChange={(event) => setMuscle(event.target.value as MuscleGroup | '')}
+                  >
+                    <option value="">Todos os musculos</option>
+                    {MUSCLES.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                  <Select
+                    aria-label="Filtrar por equipamento"
+                    value={equipment}
+                    onChange={(event) => setEquipment(event.target.value as Equipment | '')}
+                  >
+                    <option value="">Todo equipamento</option>
+                    {EQUIPMENT.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                  <Select
+                    aria-label="Filtrar por origem"
+                    value={origin}
+                    onChange={(event) => setOrigin(event.target.value as typeof origin)}
+                  >
+                    <option value="">Todas as origens</option>
+                    <option value="global">Catalogo</option>
+                    <option value="custom">Meus exercicios</option>
+                  </Select>
+                  <label className="tap flex items-center gap-2 rounded-lg border border-input px-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={includeArchived}
+                      onChange={(event) => setIncludeArchived(event.target.checked)}
+                    />
+                    Arquivados
+                  </label>
+                </div>
+              </Card>
+
+              {exercises.isPending ? <Card aria-busy="true">Carregando biblioteca...</Card> : null}
+              {exercises.isError ? (
+                <Card>
+                  <ErrorState
+                    description={describeApiError(
+                      exercises.error,
+                      'Falha ao carregar a biblioteca.',
+                    )}
+                    onRetry={() => void exercises.refetch()}
+                  />
+                </Card>
+              ) : null}
+              {exercises.data?.data.length === 0 ? (
+                <Card>
+                  <EmptyState
+                    title="Nenhum exercicio encontrado"
+                    description="Altere os filtros ou crie um exercicio personalizado."
+                  />
+                </Card>
+              ) : null}
+
+              <div className="flex flex-col gap-2">
+                {exercises.data?.data.map((exercise) => (
+                  <Card key={exercise.id} className="flex items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <CardTitle className="truncate">{exercise.name}</CardTitle>
+                        <Badge variant={exercise.isGlobal ? 'neutral' : 'primary'}>
+                          {exercise.isGlobal ? 'Catalogo' : 'Seu'}
+                        </Badge>
+                        {exercise.isArchived ? <Badge variant="warning">Arquivado</Badge> : null}
+                      </div>
+                      <CardDescription className="mt-1">
+                        {muscleLabel(exercise.primaryMuscle)} · {equipmentLabel(exercise.equipment)}{' '}
+                        · {difficultyLabel(exercise.difficulty)}
+                      </CardDescription>
+                    </div>
+                    {!exercise.isGlobal ? (
+                      <div className="flex shrink-0">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Editar ${exercise.name}`}
+                          disabled={loadingId === exercise.id}
+                          onClick={() => void openEditor(exercise.id)}
+                        >
+                          <Pencil />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Excluir ou arquivar ${exercise.name}`}
+                          disabled={remove.isPending}
+                          onClick={() => {
+                            if (window.confirm(`Excluir ou arquivar "${exercise.name}"?`)) {
+                              remove.mutate(exercise);
+                            }
+                          }}
+                        >
+                          <Archive />
+                        </Button>
+                      </div>
+                    ) : null}
+                  </Card>
+                ))}
+              </div>
+            </section>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -346,7 +419,7 @@ function ExerciseForm({
             required
           />
         </FormField>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
           <FormField id="exercise-muscle" label="Grupo principal">
             <Select
               id="exercise-muscle"
@@ -401,7 +474,7 @@ function ExerciseForm({
             maxLength={1000}
           />
         </FormField>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
           <Button variant="outline" onClick={onCancel} disabled={save.isPending}>
             Cancelar
           </Button>

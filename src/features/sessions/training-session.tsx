@@ -1,37 +1,24 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Check,
-  CircleStop,
-  Clock3,
-  CloudOff,
-  History,
-  Play,
-  Plus,
-  SkipForward,
-  Trash2,
-} from 'lucide-react';
-import { useState, useSyncExternalStore, type FormEvent } from 'react';
+import { Check, CircleStop, Clock3, CloudOff, Play, SkipForward } from 'lucide-react';
+import { useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 
 import { FormField } from '@/components/forms/form-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { workoutKeys } from '@/features/workouts/workout-manager';
-import { apiClient } from '@/lib/api/client';
 import type { components } from '@/lib/api/generated/types';
-import { describeApiError, requireApiData } from '@/lib/api/result';
+import { describeApiError } from '@/lib/api/result';
 import { todayCivil } from '@/lib/dates/civil-date';
 import {
-  deleteTrainingSet,
   finishTraining,
   loadActiveSession,
   loadWorkouts,
-  saveTrainingSet,
+  saveTrainingExerciseSets,
   startTraining,
   updateTrainingExercise,
 } from '@/lib/offline/training';
@@ -40,10 +27,10 @@ import { syncOutbox } from '@/lib/offline/sync';
 import type { OfflineQueueStatus } from '@/lib/offline/types';
 import { useOfflineOwnerId, useOfflineQueueStatus } from '@/lib/offline/use-offline-status';
 
+import { ExerciseSetsModal, type ExerciseSetInput } from './exercise-sets-modal';
+
 type SessionDetail = components['schemas']['SessionDetailResponse'];
 type SessionExercise = components['schemas']['SessionExerciseResponse'];
-type SetLog = components['schemas']['SetLogResponse'];
-type UpsertSetRequest = components['schemas']['UpsertSetRequest'];
 type FinishSessionRequest = components['schemas']['FinishSessionRequest'];
 
 export const sessionKeys = {
@@ -193,49 +180,16 @@ function ActiveSessionView({
       toast.error(describeApiError(error, 'Nao foi possivel atualizar o exercicio.')),
   });
 
-  const removeSet = useMutation({
-    mutationFn: async (set: SetLog) => {
-      return deleteTrainingSet(ownerId, session, set);
-    },
-    onSuccess: (result) => {
-      updateSession(result.session);
-      toast.success(result.queued ? 'Serie removida e sincronizacao pendente.' : 'Serie removida.');
-    },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel excluir a serie.')),
-  });
-
   const finish = useMutation({
     mutationFn: async (action: 'complete' | 'abandon') => {
-      if (action === 'complete') {
-        let current = session;
-        for (const exercise of current.exercises.filter((item) => item.status === 'PENDING')) {
-          if (!exercise.exerciseId) continue;
-          const status = exercise.sets.length > 0 ? 'DONE' : 'SKIPPED';
-          const result = await updateTrainingExercise(
-            ownerId,
-            current,
-            exercise.id,
-            exercise.exerciseId,
-            status,
-          );
-          current = result.session;
-        }
-        const body: FinishSessionRequest = {
-          clientEndedAt: new Date().toISOString(),
-          notes: notes.trim() || null,
-        };
-        return finishTraining(ownerId, current, action, body);
-      }
-
       const body: FinishSessionRequest = {
         clientEndedAt: new Date().toISOString(),
         notes: notes.trim() || null,
       };
       return finishTraining(ownerId, session, action, body);
     },
-    onSuccess: async (result) => {
+    onSuccess: (result) => {
       queryClient.setQueryData(sessionKeys.active, null);
-      await queryClient.invalidateQueries({ queryKey: sessionKeys.all });
       const label =
         result.session.status === 'COMPLETED' ? 'Treino concluido.' : 'Treino abandonado.';
       toast.success(result.queued ? `${label} Sincronizacao pendente.` : label);
@@ -278,9 +232,6 @@ function ActiveSessionView({
           disabled={session.status !== 'ACTIVE'}
           onUpdated={updateSession}
           onRest={(seconds) => setRestUntil(Date.now() + seconds * 1000)}
-          onRemoveSet={(set) => {
-            if (window.confirm(`Remover a serie ${set.setNumber}?`)) removeSet.mutate(set);
-          }}
           onStatus={(status) => setExerciseStatus.mutate({ exercise, status })}
         />
       ))}
@@ -294,7 +245,7 @@ function ActiveSessionView({
             maxLength={1000}
           />
         </FormField>
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
           <Button
             variant="destructive"
             disabled={finish.isPending}
@@ -326,7 +277,6 @@ function ExerciseLogger({
   disabled,
   onUpdated,
   onRest,
-  onRemoveSet,
   onStatus,
 }: {
   readonly ownerId: string;
@@ -335,217 +285,89 @@ function ExerciseLogger({
   readonly disabled: boolean;
   readonly onUpdated: (session: SessionDetail) => void;
   readonly onRest: (seconds: number) => void;
-  readonly onRemoveSet: (set: SetLog) => void;
   readonly onStatus: (status: 'DONE' | 'SKIPPED') => void;
 }) {
   const [expanded, setExpanded] = useState(exercise.status === 'PENDING');
-  const [weightKg, setWeightKg] = useState('');
-  const [reps, setReps] = useState(exercise.repMin);
-  const [rpe, setRpe] = useState('');
-  const [painLevel, setPainLevel] = useState('');
-  const [isWarmup, setIsWarmup] = useState(false);
-  const [notes, setNotes] = useState('');
-  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
-  const [nextSetId, setNextSetId] = useState(() => crypto.randomUUID());
+  const [setsModalOpen, setSetsModalOpen] = useState(false);
 
-  const saveSet = useMutation({
-    mutationFn: async ({ setId, body }: { setId: string; body: UpsertSetRequest }) => {
-      return saveTrainingSet(ownerId, session, setId, body);
+  const saveSets = useMutation({
+    mutationFn: async (sets: ExerciseSetInput[]) => {
+      return saveTrainingExerciseSets(ownerId, session, exercise.id, { sets });
     },
     onSuccess: (result) => {
       onUpdated(result.session);
       onRest(exercise.restSeconds);
-      setNotes('');
-      setNextSetId(crypto.randomUUID());
-      toast.success(result.queued ? 'Serie salva offline.' : 'Serie registrada.');
+      setSetsModalOpen(false);
+      toast.success(
+        result.queued
+          ? 'Exercício concluído e salvo neste aparelho.'
+          : 'Exercício concluído. Sincronizando em segundo plano.',
+      );
     },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel registrar a serie.')),
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível salvar as séries.')),
   });
 
-  async function loadLastSet(): Promise<void> {
-    if (!exercise.exerciseId) return;
-    setLoadingSuggestion(true);
-    try {
-      const { data, error } = await apiClient.GET(
-        '/api/v1/progress/exercises/{exerciseId}/load-suggestion',
-        { params: { path: { exerciseId: exercise.exerciseId } } },
-      );
-      const suggestion = requireApiData(data, error, 'carregar o ultimo desempenho');
-      if (suggestion.lastWeightKg !== null && suggestion.lastWeightKg !== undefined) {
-        setWeightKg(suggestion.lastWeightKg);
-      }
-      if (suggestion.lastReps !== null && suggestion.lastReps !== undefined) {
-        setReps(suggestion.lastReps);
-      }
-      if (suggestion.lastWeightKg === null || suggestion.lastWeightKg === undefined) {
-        toast.info('Este exercicio ainda nao tem carga anterior.');
-      }
-    } catch (error) {
-      toast.error(describeApiError(error, 'Nao foi possivel carregar a ultima serie.'));
-    } finally {
-      setLoadingSuggestion(false);
-    }
-  }
-
-  function handleSet(event: FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
-    const nextSetNumber = Math.max(0, ...exercise.sets.map((set) => set.setNumber)) + 1;
-    saveSet.mutate({
-      setId: nextSetId,
-      body: {
-        sessionExerciseId: exercise.id,
-        setNumber: nextSetNumber,
-        weightKg: weightKg.replace(',', '.'),
-        reps,
-        isWarmup,
-        ...(rpe ? { rpe: Number(rpe) } : {}),
-        ...(painLevel ? { painLevel: Number(painLevel) } : {}),
-        clientCompletedAt: new Date().toISOString(),
-        notes: notes.trim() || null,
-      },
-    });
-  }
-
   return (
-    <Card className={exercise.status === 'SKIPPED' ? 'opacity-70' : undefined}>
-      <button
-        type="button"
-        className="tap flex w-full items-start justify-between gap-3 text-left"
-        aria-expanded={expanded}
-        onClick={() => setExpanded((value) => !value)}
-      >
-        <div>
-          <CardTitle>{exercise.exerciseName}</CardTitle>
-          <CardDescription className="mt-1">
-            {exercise.targetSets} series · {exercise.repMin}–{exercise.repMax} repeticoes ·{' '}
-            {exercise.restSeconds}s
-          </CardDescription>
-        </div>
-        <span className="text-xs font-medium text-muted-foreground">
-          {exercise.status === 'PENDING'
-            ? `${exercise.sets.length}/${exercise.targetSets}`
-            : exerciseStatusLabel(exercise.status)}
-        </span>
-      </button>
+    <>
+      <Card className={exercise.status === 'SKIPPED' ? 'opacity-70' : undefined}>
+        <button
+          type="button"
+          className="tap flex w-full min-w-0 items-start justify-between gap-3 text-left"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          <div className="min-w-0">
+            <CardTitle className="break-words">{exercise.exerciseName}</CardTitle>
+            <CardDescription className="mt-1">
+              {exercise.targetSets} séries · {exercise.repMin}–{exercise.repMax} repetições ·{' '}
+              {exercise.restSeconds}s
+            </CardDescription>
+          </div>
+          <span className="shrink-0 text-xs font-medium text-muted-foreground">
+            {exercise.status === 'PENDING'
+              ? `${exercise.sets.length}/${exercise.targetSets}`
+              : exerciseStatusLabel(exercise.status)}
+          </span>
+        </button>
 
-      {expanded ? (
-        <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
-          {exercise.sets.map((set) => (
-            <div
-              key={set.id}
-              className="flex items-center justify-between gap-2 rounded-lg bg-secondary/40 px-3 py-2"
-            >
-              <p className="text-sm tabular">
-                {set.isWarmup ? 'Aq.' : `${set.setNumber}.`} {set.weightKg} kg × {set.reps}
-                {set.rpe ? ` · RPE ${set.rpe}` : ''}
-                {set.painLevel !== null && set.painLevel !== undefined
-                  ? ` · Dor ${set.painLevel}`
-                  : ''}
-              </p>
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label={`Remover serie ${set.setNumber}`}
-                onClick={() => onRemoveSet(set)}
-              >
-                <Trash2 />
+        {expanded ? (
+          <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
+            {exercise.sets.length > 0 ? (
+              <ul className="flex flex-col gap-2">
+                {exercise.sets.map((set) => (
+                  <li key={set.id} className="rounded-lg bg-secondary/40 px-3 py-2 text-sm tabular">
+                    {set.isWarmup ? 'Aquecimento' : `Série ${set.setNumber}`}: {set.weightKg} kg ×{' '}
+                    {set.reps}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhuma série preenchida.</p>
+            )}
+
+            {exercise.status !== 'SKIPPED' ? (
+              <Button size="lg" disabled={disabled} onClick={() => setSetsModalOpen(true)}>
+                <Check /> {exercise.sets.length > 0 ? 'Editar séries' : 'Preencher séries'}
               </Button>
-            </div>
-          ))}
+            ) : null}
 
-          {exercise.status === 'PENDING' ? (
-            <form onSubmit={handleSet} className="flex flex-col gap-3">
-              <div className="grid grid-cols-2 gap-2">
-                <FormField id={`weight-${exercise.id}`} label="Carga (kg)">
-                  <Input
-                    id={`weight-${exercise.id}`}
-                    value={weightKg}
-                    onChange={(event) => setWeightKg(event.target.value.replace(',', '.'))}
-                    inputMode="decimal"
-                    pattern="[0-9]+([.,][0-9]{1,2})?"
-                    placeholder="0.00"
-                    required
-                  />
-                </FormField>
-                <FormField id={`reps-${exercise.id}`} label="Repeticoes">
-                  <Input
-                    id={`reps-${exercise.id}`}
-                    type="number"
-                    min={1}
-                    max={500}
-                    value={reps}
-                    onChange={(event) => {
-                      if (Number.isFinite(event.currentTarget.valueAsNumber)) {
-                        setReps(event.currentTarget.valueAsNumber);
-                      }
-                    }}
-                    required
-                  />
-                </FormField>
-                <FormField id={`rpe-${exercise.id}`} label="Esforco RPE (1–10)">
-                  <Input
-                    id={`rpe-${exercise.id}`}
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={rpe}
-                    onChange={(event) => setRpe(event.target.value)}
-                  />
-                </FormField>
-                <FormField id={`pain-${exercise.id}`} label="Dor (0–10)">
-                  <Input
-                    id={`pain-${exercise.id}`}
-                    type="number"
-                    min={0}
-                    max={10}
-                    value={painLevel}
-                    onChange={(event) => setPainLevel(event.target.value)}
-                  />
-                </FormField>
-              </div>
-              <Input
-                aria-label={`Observacao da serie de ${exercise.exerciseName}`}
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                maxLength={300}
-                placeholder="Observacao opcional"
-              />
-              <label className="tap flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={isWarmup}
-                  onChange={(event) => setIsWarmup(event.target.checked)}
-                />
-                Serie de aquecimento
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  disabled={loadingSuggestion}
-                  onClick={() => void loadLastSet()}
-                >
-                  <History /> {loadingSuggestion ? 'Buscando...' : 'Usar ultima'}
-                </Button>
-                <Button type="submit" disabled={disabled || saveSet.isPending || !weightKg}>
-                  <Plus /> {saveSet.isPending ? 'Salvando...' : 'Registrar serie'}
-                </Button>
-              </div>
-            </form>
-          ) : null}
-
-          {exercise.status === 'PENDING' ? (
-            <div className="grid grid-cols-2 gap-2">
+            {exercise.status === 'PENDING' ? (
               <Button variant="outline" disabled={disabled} onClick={() => onStatus('SKIPPED')}>
-                <SkipForward /> Pular exercicio
+                <SkipForward /> Pular exercício
               </Button>
-              <Button disabled={disabled} onClick={() => onStatus('DONE')}>
-                <Check /> Concluir exercicio
-              </Button>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </Card>
+            ) : null}
+          </div>
+        ) : null}
+      </Card>
+
+      <ExerciseSetsModal
+        open={setsModalOpen}
+        exercise={exercise}
+        pending={saveSets.isPending}
+        onClose={() => setSetsModalOpen(false)}
+        onSubmit={(sets) => saveSets.mutate(sets)}
+      />
+    </>
   );
 }
 

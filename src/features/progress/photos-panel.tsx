@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, ImagePlus, Trash2 } from 'lucide-react';
+import { ExternalLink, ImagePlus, Pencil, Trash2, X } from 'lucide-react';
 import { useState, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
 
@@ -25,6 +25,8 @@ export function PhotosPanel() {
   const queryClient = useQueryClient();
   const [capturedOn, setCapturedOn] = useState(todayCivil());
   const [file, setFile] = useState<File | null>(null);
+  const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
+  const [editCapturedOn, setEditCapturedOn] = useState('');
 
   const photos = useQuery({
     queryKey: progressKeys.photos,
@@ -114,6 +116,26 @@ export function PhotosPanel() {
     onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel excluir a foto.')),
   });
 
+  const update = useMutation({
+    mutationFn: async ({ photo, date }: { photo: Photo; date: string }) => {
+      const { data, error } = await apiClient.PATCH('/api/v1/progress/photos/{photoId}', {
+        params: {
+          path: { photoId: photo.id },
+          header: { 'If-Match': `"${photo.version}"` },
+        },
+        body: { capturedOn: date },
+      });
+      return requireApiData(data, error, 'corrigir a data da foto');
+    },
+    onSuccess: async () => {
+      setEditingPhoto(null);
+      setEditCapturedOn('');
+      await queryClient.invalidateQueries({ queryKey: progressKeys.photos });
+      toast.success('Data da foto atualizada.');
+    },
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível atualizar a foto.')),
+  });
+
   function selectFile(event: ChangeEvent<HTMLInputElement>): void {
     const selected = event.target.files?.[0] ?? null;
     if (selected && !ALLOWED_MIMES.has(selected.type as AllowedMime)) {
@@ -170,50 +192,89 @@ export function PhotosPanel() {
         ) : null}
         <ul className="mt-4 divide-y divide-border">
           {data.map((photo) => (
-            <li
-              key={photo.id}
-              className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-            >
-              <div>
-                <p className="font-medium">{formatCivilDate(photo.capturedOn)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {photo.status === 'READY' ? 'Disponivel' : 'Envio pendente'} ·{' '}
-                  {formatBytes(photo.sizeBytes)}
-                </p>
-              </div>
-              <div className="flex gap-1">
-                {photo.status === 'PENDING' ? (
+            <li key={photo.id} className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0">
+              <div className="flex w-full items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium">{formatCivilDate(photo.capturedOn)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {photo.status === 'READY' ? 'Disponivel' : 'Envio pendente'} ·{' '}
+                    {formatBytes(photo.sizeBytes)}
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  {photo.status === 'PENDING' ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={confirm.isPending}
+                      onClick={() => confirm.mutate(photo.id)}
+                    >
+                      Validar
+                    </Button>
+                  ) : null}
                   <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={confirm.isPending}
-                    onClick={() => confirm.mutate(photo.id)}
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Editar data da foto"
+                    onClick={() => {
+                      setEditingPhoto(photo);
+                      setEditCapturedOn(photo.capturedOn);
+                    }}
                   >
-                    Validar
+                    <Pencil />
                   </Button>
-                ) : null}
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label="Abrir foto privada"
-                  disabled={photo.status !== 'READY' || open.isPending}
-                  onClick={() => open.mutate(photo.id)}
-                >
-                  <ExternalLink />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label="Excluir foto"
-                  disabled={remove.isPending}
-                  onClick={() => {
-                    if (window.confirm('Excluir definitivamente esta foto?'))
-                      remove.mutate(photo.id);
-                  }}
-                >
-                  <Trash2 />
-                </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Abrir foto privada"
+                    disabled={photo.status !== 'READY' || open.isPending}
+                    onClick={() => open.mutate(photo.id)}
+                  >
+                    <ExternalLink />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Excluir foto"
+                    disabled={remove.isPending}
+                    onClick={() => {
+                      if (window.confirm('Excluir definitivamente esta foto?'))
+                        remove.mutate(photo.id);
+                    }}
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
               </div>
+              {editingPhoto?.id === photo.id ? (
+                <div className="flex min-w-0 flex-col gap-2 rounded-xl bg-secondary/40 p-2 min-[440px]:flex-row">
+                  <Input
+                    aria-label="Nova data da foto"
+                    type="date"
+                    value={editCapturedOn}
+                    max={todayCivil()}
+                    onChange={(event) => setEditCapturedOn(event.target.value)}
+                  />
+                  <div className="flex shrink-0 gap-2">
+                    <Button
+                      className="flex-1"
+                      size="sm"
+                      disabled={!editCapturedOn || update.isPending}
+                      onClick={() => update.mutate({ photo, date: editCapturedOn })}
+                    >
+                      Salvar
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label="Cancelar edição da foto"
+                      onClick={() => setEditingPhoto(null)}
+                    >
+                      <X />
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

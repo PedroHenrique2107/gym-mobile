@@ -5,6 +5,7 @@ export type WorkoutDetail = components['schemas']['WorkoutDetailResponse'];
 export type StartSessionRequest = components['schemas']['StartSessionRequest'];
 export type UpsertSessionExerciseRequest = components['schemas']['UpsertSessionExerciseRequest'];
 export type UpsertSetRequest = components['schemas']['UpsertSetRequest'];
+export type ReplaceExerciseSetsRequest = components['schemas']['ReplaceExerciseSetsRequest'];
 export type FinishSessionRequest = components['schemas']['FinishSessionRequest'];
 
 export type OfflineOperation =
@@ -23,6 +24,12 @@ export type OfflineOperation =
       readonly kind: 'DELETE_SET';
       readonly sessionId: string;
       readonly setId: string;
+    }
+  | {
+      readonly kind: 'REPLACE_EXERCISE_SETS';
+      readonly sessionId: string;
+      readonly sessionExerciseId: string;
+      readonly body: ReplaceExerciseSetsRequest;
     }
   | {
       readonly kind: 'SET_EXERCISE_STATUS';
