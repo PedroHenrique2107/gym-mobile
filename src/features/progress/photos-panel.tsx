@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
+import { DateInput } from '@/components/forms/date-input';
 import { Input } from '@/components/ui/input';
 import { apiClient } from '@/lib/api/client';
 import type { components } from '@/lib/api/generated/types';
@@ -163,9 +164,8 @@ export function PhotosPanel() {
           Arquivos privados, validados pela API antes de ficarem disponiveis.
         </CardDescription>
         <div className="mt-4 flex flex-col gap-3">
-          <Input
+          <DateInput
             aria-label="Data da foto"
-            type="date"
             value={capturedOn}
             max={todayCivil()}
             onChange={(event) => setCapturedOn(event.target.value)}
@@ -248,9 +248,8 @@ export function PhotosPanel() {
               </div>
               {editingPhoto?.id === photo.id ? (
                 <div className="flex min-w-0 flex-col gap-2 rounded-xl bg-secondary/40 p-2 min-[440px]:flex-row">
-                  <Input
+                  <DateInput
                     aria-label="Nova data da foto"
-                    type="date"
                     value={editCapturedOn}
                     max={todayCivil()}
                     onChange={(event) => setEditCapturedOn(event.target.value)}

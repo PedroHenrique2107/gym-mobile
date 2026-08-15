@@ -5,11 +5,11 @@ import { Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
+import { DateInput } from '@/components/forms/date-input';
 import { FormField } from '@/components/forms/form-field';
 import { DecimalInput } from '@/components/forms/numeric-input';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { apiClient } from '@/lib/api/client';
 import type { components } from '@/lib/api/generated/types';
@@ -137,9 +137,8 @@ export function MeasurementsPanel() {
         </CardDescription>
         <form className="mt-4 flex flex-col gap-3" onSubmit={submit}>
           <FormField id="measurement-date" label="Data da avaliacao">
-            <Input
+            <DateInput
               id="measurement-date"
-              type="date"
               value={form.measuredOn}
               max={todayCivil()}
               onChange={(event) =>
