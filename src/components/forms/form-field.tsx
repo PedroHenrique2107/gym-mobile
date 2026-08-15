@@ -14,7 +14,10 @@ export function FormField({
   readonly children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    // `min-w-0`: como item de grid, o padrão é não encolher abaixo do conteúdo.
+    // Um controle nativo com largura mínima grande — data no iOS é o caso —
+    // estouraria a coluna e apareceria por cima do campo ao lado.
+    <div className="flex min-w-0 flex-col gap-1.5">
       <label htmlFor={id} className="text-sm font-medium text-foreground">
         {label}
       </label>

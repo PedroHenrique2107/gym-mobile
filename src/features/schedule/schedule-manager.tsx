@@ -5,12 +5,12 @@ import { CalendarDays, RotateCcw } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
+import { DateInput } from '@/components/forms/date-input';
 import { FormField } from '@/components/forms/form-field';
 import { ErrorState } from '@/components/feedback/state-message';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { apiClient } from '@/lib/api/client';
@@ -265,9 +265,8 @@ export function ScheduleManager() {
               </CardDescription>
             </div>
             <FormField id="exception-date" label="Data">
-              <Input
+              <DateInput
                 id="exception-date"
-                type="date"
                 value={selectedDate}
                 onChange={(event) => {
                   const day = resolved.data?.days.find(
@@ -309,9 +308,8 @@ export function ScheduleManager() {
             ) : null}
             {kind === 'RESCHEDULED' ? (
               <FormField id="exception-moved" label="Mover para">
-                <Input
+                <DateInput
                   id="exception-moved"
-                  type="date"
                   value={movedToDate}
                   onChange={(event) => setMovedToDate(event.target.value)}
                   required

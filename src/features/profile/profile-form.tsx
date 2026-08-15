@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
+import { DateInput } from '@/components/forms/date-input';
 import { FormField } from '@/components/forms/form-field';
 import {
   DecimalInput as SanitizedDecimalInput,
@@ -173,11 +174,16 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
           />
         </FormField>
 
-        <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
+        {/*
+          Duas colunas só a partir de 440px. Abaixo disso a coluna fica menor que
+          a data por extenso do iOS, e o par nascimento/sexo era exatamente onde
+          um campo cobria o outro. Empilhar é melhor que espremer: a data
+          continua legível inteira.
+        */}
+        <div className="grid grid-cols-1 gap-3 min-[440px]:grid-cols-2">
           <FormField id="profile-birth" label="Nascimento">
-            <Input
+            <DateInput
               id="profile-birth"
-              type="date"
               value={birthDate}
               onChange={(event) => setBirthDate(event.target.value)}
             />
@@ -363,19 +369,18 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
             <option value="UTC">UTC</option>
           </Select>
         </FormField>
-        <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
+        {/* Duas datas lado a lado é o caso mais apertado; vale o mesmo limite. */}
+        <div className="grid grid-cols-1 gap-3 min-[440px]:grid-cols-2">
           <FormField id="profile-start" label="Inicio do plano">
-            <Input
+            <DateInput
               id="profile-start"
-              type="date"
               value={startDate}
               onChange={(event) => setStartDate(event.target.value)}
             />
           </FormField>
           <FormField id="profile-deadline" label="Prazo da meta">
-            <Input
+            <DateInput
               id="profile-deadline"
-              type="date"
               value={deadline}
               onChange={(event) => setDeadline(event.target.value)}
             />
