@@ -16,7 +16,7 @@ export function PwaSettings() {
         <div>
           <CardTitle>Aplicativo e offline</CardTitle>
           <CardDescription className="mt-1">
-            Instale o GymFlow e controle quando uma nova versao entra em uso.
+            Instale o GymFlow e controle quando uma nova versão entra em uso.
           </CardDescription>
         </div>
         <span className={pwa.isOnline ? 'text-success' : 'text-warning'}>
@@ -32,7 +32,7 @@ export function PwaSettings() {
         ) : null}
         {pwa.isIos && !pwa.isInstalled ? (
           <p className="rounded-lg bg-secondary/50 p-3 text-sm text-muted-foreground">
-            No iPhone, abra Compartilhar e escolha “Adicionar a Tela de Inicio”.
+            No iPhone, abra Compartilhar e escolha “Adicionar à Tela de Início”.
           </p>
         ) : null}
         {pwa.isInstalled ? (
@@ -42,11 +42,11 @@ export function PwaSettings() {
         ) : null}
         {pwa.updateAvailable ? (
           <Button onClick={() => pwa.applyUpdate()}>
-            <RefreshCw /> Aplicar atualizacao
+            <RefreshCw /> Aplicar atualização
           </Button>
         ) : (
           <Button variant="outline" onClick={() => void pwa.checkForUpdate()}>
-            <RefreshCw /> Procurar atualizacao
+            <RefreshCw /> Procurar atualização
           </Button>
         )}
       </div>

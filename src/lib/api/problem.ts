@@ -130,18 +130,18 @@ export class ApiError extends Error {
 
 /** Mensagens de fallback quando o backend nao envia `detail`. */
 const FALLBACK_MESSAGES: Readonly<Record<number, string>> = {
-  0: 'Sem conexao com o servidor. Verifique sua internet.',
-  400: 'Nao foi possivel processar a requisicao.',
-  401: 'Sua sessao expirou. Entre novamente.',
-  403: 'Voce nao tem permissao para esta acao.',
-  404: 'Nao encontramos o que voce procurava.',
+  0: 'Sem conexão com o servidor. Verifique sua internet.',
+  400: 'Não foi possível processar a requisição.',
+  401: 'Sua sessão expirou. Entre novamente.',
+  403: 'Você não tem permissão para esta ação.',
+  404: 'Não encontramos o que você procurava.',
   409: 'Este item foi alterado em outro dispositivo.',
-  413: 'O arquivo e maior que o permitido.',
-  415: 'Formato de arquivo nao aceito.',
+  413: 'O arquivo é maior que o permitido.',
+  415: 'Formato de arquivo não aceito.',
   422: 'Revise os campos informados.',
   429: 'Muitas tentativas. Aguarde um momento.',
   500: 'Algo deu errado do nosso lado. Tente novamente.',
-  503: 'O servico esta indisponivel. Tente em instantes.',
+  503: 'O serviço está indisponível. Tente em instantes.',
 };
 
 const GENERIC_MESSAGE = 'Algo deu errado. Tente novamente.';

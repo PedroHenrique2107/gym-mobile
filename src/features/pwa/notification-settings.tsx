@@ -31,21 +31,21 @@ export function NotificationSettings() {
     queryKey: notificationKeys.config,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/api/v1/notifications/config');
-      return requireApiData(data, error, 'verificar notificacoes');
+      return requireApiData(data, error, 'verificar notificações');
     },
   });
   const preferences = useQuery({
     queryKey: notificationKeys.preferences,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/api/v1/notifications/preferences');
-      return requireApiData(data, error, 'carregar preferencias de notificacao');
+      return requireApiData(data, error, 'carregar preferências de notificação');
     },
   });
   const subscriptions = useQuery({
     queryKey: notificationKeys.subscriptions,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/api/v1/notifications/subscriptions');
-      return requireApiData(data, error, 'listar dispositivos de notificacao');
+      return requireApiData(data, error, 'listar dispositivos de notificação');
     },
   });
   const preference = preferences.data?.data.find((item) => item.type === 'WORKOUT_REMINDER');
@@ -54,17 +54,17 @@ export function NotificationSettings() {
   const enable = useMutation({
     mutationFn: async () => {
       if (!config.data?.enabled || !config.data.publicKey) {
-        throw new Error('Web Push ainda nao esta configurado neste ambiente.');
+        throw new Error('Web Push ainda não está configurado neste ambiente.');
       }
       if (!supportsWebPush()) {
         throw new Error(
-          'Este navegador nao oferece Web Push neste modo. Instale a PWA e tente novamente.',
+          'Este navegador não oferece Web Push neste modo. Instale a PWA e tente novamente.',
         );
       }
 
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        throw new Error('A permissao de notificacao nao foi concedida.');
+        throw new Error('A permissão de notificação não foi concedida.');
       }
 
       const registration = await navigator.serviceWorker.ready;
@@ -108,10 +108,10 @@ export function NotificationSettings() {
     onError: async (error) => {
       if (error instanceof ApiError && error.code === ErrorCode.RESOURCE_VERSION_CONFLICT) {
         await queryClient.invalidateQueries({ queryKey: notificationKeys.preferences });
-        toast.error('A preferencia mudou em outro dispositivo. Revise e tente novamente.');
+        toast.error('A preferência mudou em outro dispositivo. Revise e tente novamente.');
         return;
       }
-      toast.error(describeApiError(error, 'Nao foi possivel ativar o lembrete.'));
+      toast.error(describeApiError(error, 'Não foi possível ativar o lembrete.'));
     },
   });
 
@@ -134,7 +134,7 @@ export function NotificationSettings() {
       toast.success('Lembrete de treino desativado.');
     },
     onError: (error) =>
-      toast.error(describeApiError(error, 'Nao foi possivel desativar o lembrete.')),
+      toast.error(describeApiError(error, 'Não foi possível desativar o lembrete.')),
   });
 
   const remove = useMutation({
@@ -147,16 +147,16 @@ export function NotificationSettings() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: notificationKeys.subscriptions });
-      toast.success('Dispositivo removido das notificacoes.');
+      toast.success('Dispositivo removido das notificações.');
     },
     onError: (error) =>
-      toast.error(describeApiError(error, 'Nao foi possivel remover o dispositivo.')),
+      toast.error(describeApiError(error, 'Não foi possível remover o dispositivo.')),
   });
 
   if (config.isPending || preferences.isPending || subscriptions.isPending) {
     return (
       <Card className="mt-6" aria-busy="true">
-        Carregando notificacoes...
+        Carregando notificações...
       </Card>
     );
   }
@@ -164,11 +164,11 @@ export function NotificationSettings() {
   if (config.isError || preferences.isError || subscriptions.isError) {
     return (
       <Card className="mt-6 border-destructive/30">
-        <CardTitle>Notificacoes</CardTitle>
+        <CardTitle>Notificações</CardTitle>
         <p className="mt-2 text-sm text-destructive">
           {describeApiError(
             config.error ?? preferences.error ?? subscriptions.error,
-            'Nao foi possivel carregar as notificacoes.',
+            'Não foi possível carregar as notificações.',
           )}
         </p>
       </Card>
@@ -181,7 +181,7 @@ export function NotificationSettings() {
         <div>
           <CardTitle>Lembretes de treino</CardTitle>
           <CardDescription className="mt-1">
-            Opcional e desativado por padrao. Usa o horario e timezone do seu perfil.
+            Opcional e desativado por padrão. Usa o horário e timezone do seu perfil.
           </CardDescription>
         </div>
         {preference?.enabled ? (
@@ -193,13 +193,13 @@ export function NotificationSettings() {
 
       {!config.data?.enabled ? (
         <p className="mt-4 rounded-lg bg-secondary/50 p-3 text-sm text-muted-foreground">
-          O servidor ainda nao possui as chaves Web Push. Nenhum lembrete sera enviado ate a
-          configuracao ser concluida.
+          O servidor ainda não possui as chaves Web Push. Nenhum lembrete será enviado até a
+          configuração ser concluída.
         </p>
       ) : (
         <div className="mt-4 flex gap-2">
           <Input
-            aria-label="Horario do lembrete"
+            aria-label="Horário do lembrete"
             type="time"
             value={selectedTime}
             disabled={preference?.enabled}

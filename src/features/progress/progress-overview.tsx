@@ -23,7 +23,12 @@ import { ExerciseSetsModal, type ExerciseSetInput } from '@/features/sessions/ex
 import { apiClient } from '@/lib/api/client';
 import type { components } from '@/lib/api/generated/types';
 import { describeApiError, requireApiData, requireApiSuccess } from '@/lib/api/result';
-import { addCivilDays, formatCivilDate, todayCivil } from '@/lib/dates/civil-date';
+import {
+  addCivilDays,
+  civilDateFromIso,
+  formatCivilDate,
+  todayCivil,
+} from '@/lib/dates/civil-date';
 
 type Summary = components['schemas']['ProgressSummaryResponse'];
 type ExerciseRecord = components['schemas']['ExerciseRecordResponse'];
@@ -63,21 +68,52 @@ export function ProgressOverview() {
         summary: requireApiData(summaryResult.data, summaryResult.error, 'carregar os indicadores'),
         records: requireApiData(recordsResult.data, recordsResult.error, 'carregar os recordes')
           .data,
-        sessions: requireApiData(sessionsResult.data, sessionsResult.error, 'carregar o historico')
+        sessions: requireApiData(sessionsResult.data, sessionsResult.error, 'carregar o histórico')
           .data,
       };
+    },
+  });
+  const weekFrom = addCivilDays(to, -6);
+  const liftedKg = useQuery({
+    queryKey: [...progressKeys.overview, 'lifted-kg', weekFrom, to],
+    queryFn: async (): Promise<{ today: number; week: number }> => {
+      const { data, error } = await apiClient.GET('/api/v1/sessions', {
+        params: { query: { from: weekFrom, to, limit: 50, offset: 0 } },
+      });
+      const recentSessions = requireApiData(data, error, 'carregar as séries recentes').data.filter(
+        (session) => session.status === 'COMPLETED',
+      );
+
+      const details = await Promise.all(
+        recentSessions.map((session) => loadHistorySession(session.id)),
+      );
+
+      let today = 0;
+      let week = 0;
+      for (const detail of details) {
+        for (const exercise of detail.exercises) {
+          for (const set of exercise.sets) {
+            if (set.isWarmup) continue;
+            const weight = Number(set.weightKg);
+            if (!Number.isFinite(weight)) continue;
+            week += weight;
+            if (civilDateFromIso(set.completedAt) === to) today += weight;
+          }
+        }
+      }
+      return { today, week };
     },
   });
   const history = useQuery({
     queryKey: [...progressKeys.overview, 'exercise', selectedExerciseId],
     enabled: selectedExerciseId !== null,
     queryFn: async (): Promise<ExerciseHistory> => {
-      if (!selectedExerciseId) throw new Error('Selecione um exercicio.');
+      if (!selectedExerciseId) throw new Error('Selecione um exercício.');
       const { data, error } = await apiClient.GET(
         '/api/v1/progress/exercises/{exerciseId}/history',
         { params: { path: { exerciseId: selectedExerciseId }, query: { limit: 30 } } },
       );
-      return requireApiData(data, error, 'carregar a evolucao do exercicio');
+      return requireApiData(data, error, 'carregar a evolução do exercício');
     },
   });
   const removeSession = useMutation({
@@ -101,7 +137,7 @@ export function ProgressOverview() {
     return (
       <Card className="border-destructive/30">
         <p role="alert" className="text-sm text-destructive">
-          {describeApiError(overview.error, 'Nao foi possivel carregar seu progresso.')}
+          {describeApiError(overview.error, 'Não foi possível carregar seu progresso.')}
         </p>
         <button
           className="tap mt-2 text-sm font-semibold text-primary"
@@ -119,7 +155,7 @@ export function ProgressOverview() {
     <section aria-labelledby="progress-overview-title" className="flex flex-col gap-4">
       <div>
         <h2 id="progress-overview-title" className="text-lg font-semibold">
-          Ultimos 90 dias
+          Últimos 90 dias
         </h2>
         <p className="text-sm text-muted-foreground">
           De {formatCivilDate(summary.from)} a {formatCivilDate(summary.to)}.
@@ -148,9 +184,16 @@ export function ProgressOverview() {
         />
         <MetricCard
           icon={<Trophy />}
-          label="Volume total"
-          value={`${summary.totalVolumeKg} kg`}
-          hint="carga × repetições"
+          label="Levantado hoje"
+          value={liftedKg.isPending ? '...' : `${formatLiftedKg(liftedKg.data?.today ?? 0)} kg`}
+          hint="soma da carga das séries"
+          tone="amber"
+        />
+        <MetricCard
+          icon={<Trophy />}
+          label="Levantado na semana"
+          value={liftedKg.isPending ? '...' : `${formatLiftedKg(liftedKg.data?.week ?? 0)} kg`}
+          hint="últimos 7 dias"
           tone="amber"
         />
         <MetricCard
@@ -165,11 +208,11 @@ export function ProgressOverview() {
       <Card>
         <CardTitle>Recordes pessoais</CardTitle>
         <CardDescription className="mt-1">
-          Series de aquecimento nao entram nos calculos.
+          Séries de aquecimento não entram nos cálculos.
         </CardDescription>
         {records.length === 0 ? (
           <p className="mt-3 text-sm text-muted-foreground">
-            Conclua um treino com series de trabalho para criar seus primeiros recordes.
+            Conclua um treino com séries de trabalho para criar seus primeiros recordes.
           </p>
         ) : (
           <ul className="mt-3 divide-y divide-border">
@@ -209,10 +252,10 @@ export function ProgressOverview() {
       </Card>
 
       <Card>
-        <CardTitle>Historico recente</CardTitle>
-        <CardDescription className="mt-1">Os dez treinos mais recentes do periodo.</CardDescription>
+        <CardTitle>Histórico recente</CardTitle>
+        <CardDescription className="mt-1">Os dez treinos mais recentes do período.</CardDescription>
         {sessions.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">Nenhum treino registrado no periodo.</p>
+          <p className="mt-3 text-sm text-muted-foreground">Nenhum treino registrado no período.</p>
         ) : (
           <ul className="mt-3 divide-y divide-border">
             {sessions.map((session) => (
@@ -291,11 +334,11 @@ function ExerciseHistoryDetails({
   readonly error: Error | null;
   readonly loading: boolean;
 }) {
-  if (loading) return <p className="mt-2 text-xs text-muted-foreground">Carregando evolucao...</p>;
+  if (loading) return <p className="mt-2 text-xs text-muted-foreground">Carregando evolução...</p>;
   if (error) {
     return (
       <p role="alert" className="mt-2 text-xs text-destructive">
-        {describeApiError(error, 'Nao foi possivel carregar esta evolucao.')}
+        {describeApiError(error, 'Não foi possível carregar esta evolução.')}
       </p>
     );
   }
@@ -303,7 +346,7 @@ function ExerciseHistoryDetails({
 
   return (
     <div className="mt-2 rounded-lg bg-secondary/40 p-3">
-      <p className="mb-2 text-xs font-semibold">Ultimas {history.points.length} execucoes</p>
+      <p className="mb-2 text-xs font-semibold">Últimas {history.points.length} execuções</p>
       <ul className="flex flex-col gap-2">
         {[...history.points].reverse().map((point) => (
           <li key={point.sessionId} className="flex justify-between gap-3 text-xs">
@@ -518,6 +561,10 @@ function MetricCard({
   );
 }
 
+function formatLiftedKg(value: number): string {
+  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value);
+}
+
 function sessionStatus(status: Session['status']): string {
-  return { ACTIVE: 'Em andamento', COMPLETED: 'Concluido', ABANDONED: 'Abandonado' }[status];
+  return { ACTIVE: 'Em andamento', COMPLETED: 'Concluído', ABANDONED: 'Abandonado' }[status];
 }

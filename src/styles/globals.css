@@ -117,6 +117,24 @@
   --chart-5: oklch(0.75 0.1 300);
 }
 
+/*
+ * Queda dos confetes da celebracao de treino concluido.
+ *
+ * `prefers-reduced-motion: reduce`, abaixo em `@layer base`, ja zera a duracao
+ * de qualquer animacao no site inteiro — nao precisa de tratamento especial
+ * aqui.
+ */
+@keyframes confetti-fall {
+  from {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(110vh) rotate(600deg);
+    opacity: 0.9;
+  }
+}
+
 /* --- Utilitarios de layout mobile ----------------------------------------- */
 
 /**

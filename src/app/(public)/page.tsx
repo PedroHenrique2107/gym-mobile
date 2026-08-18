@@ -34,9 +34,9 @@ export default function LandingPage() {
         <Card className="border-primary/30 bg-primary/5">
           <CardTitle className="text-primary">Pronto para treinar</CardTitle>
           <CardDescription className="mt-1 leading-relaxed">
-            Entre por convite, configure seu perfil, crie exercicios e fichas, organize a agenda e
-            execute seus treinos. Sessoes, medidas e fotos registram seu progresso, com suporte
-            offline e sincronizacao ao reconectar.
+            Entre por convite, configure seu perfil, crie exercícios e fichas, organize a agenda e
+            execute seus treinos. Sessões, medidas e fotos registram seu progresso, com suporte
+            offline e sincronização ao reconectar.
           </CardDescription>
         </Card>
 
@@ -45,13 +45,13 @@ export default function LandingPage() {
             Entrar no aplicativo
           </Link>
           <Link href="/status" className={buttonVariants({ size: 'lg', variant: 'outline' })}>
-            Verificar conexao com a API
+            Verificar conexão com a API
           </Link>
         </div>
       </div>
 
       <footer className="pt-8 text-center text-xs text-muted-foreground">
-        <p>Nome e identidade visual sao provisorios, aguardando aprovacao de marca.</p>
+        <p>Nome e identidade visual são provisórios, aguardando aprovação de marca.</p>
       </footer>
     </main>
   );

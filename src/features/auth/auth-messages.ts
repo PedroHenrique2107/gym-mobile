@@ -20,9 +20,9 @@ const MESSAGES: Readonly<Record<string, string>> = {
   over_email_send_rate_limit: 'Muitos e-mails enviados. Aguarde alguns minutos e tente de novo.',
   otp_expired: 'Este link expirou. Peça um novo.',
   validation_failed: 'Revise os dados informados.',
-  signup_disabled: 'O cadastro e feito somente por convite.',
-  email_exists: 'Este e-mail ja esta em uso.',
-  session_not_found: 'Sua sessao expirou. Entre novamente.',
+  signup_disabled: 'O cadastro é feito somente por convite.',
+  email_exists: 'Este e-mail já está em uso.',
+  session_not_found: 'Sua sessão expirou. Entre novamente.',
 };
 
 /**
@@ -32,7 +32,7 @@ const MESSAGES: Readonly<Record<string, string>> = {
  * quem tem conta no aplicativo — informação que não deve ser pública, ainda mais
  * num sistema fechado por convite.
  */
-const GENERIC = 'Nao foi possivel concluir. Verifique os dados e tente novamente.';
+const GENERIC = 'Não foi possível concluir. Verifique os dados e tente novamente.';
 
 export function describeAuthError(error: AuthError | null | undefined): string {
   if (!error) return GENERIC;
@@ -47,7 +47,7 @@ export function describeAuthError(error: AuthError | null | undefined): string {
   }
 
   if (error.status === 0 || error.name === 'AuthRetryableFetchError') {
-    return 'Sem conexao com o servidor. Verifique sua internet.';
+    return 'Sem conexão com o servidor. Verifique sua internet.';
   }
 
   return GENERIC;
@@ -68,7 +68,7 @@ export function validatePassword(password: string, confirmation?: string): strin
   }
 
   if (confirmation !== undefined && password !== confirmation) {
-    return 'As senhas nao coincidem.';
+    return 'As senhas não coincidem.';
   }
 
   return null;
@@ -79,7 +79,7 @@ export function validateEmail(email: string): string | null {
   const trimmed = email.trim();
 
   if (!trimmed) return 'Informe seu e-mail.';
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) return 'Informe um e-mail valido.';
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) return 'Informe um e-mail válido.';
 
   return null;
 }

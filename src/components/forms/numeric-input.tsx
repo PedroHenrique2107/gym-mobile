@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react';
+import { useState, type ComponentProps, type FocusEvent } from 'react';
 
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ export function IntegerInput({
   onValueChange,
   min = 0,
   max,
+  onBlur,
   ...props
 }: BaseInputProps & {
   readonly value: number;
@@ -20,21 +21,34 @@ export function IntegerInput({
   readonly min?: number;
   readonly max?: number;
 }) {
+  // Enquanto o campo está vazio (usuário apagou o valor), mostramos texto vazio
+  // em vez de já forçar `min` na tela — o valor só é confirmado no blur, senão o
+  // campo "pula" para 1 a cada tecla apagada.
+  const [emptyText, setEmptyText] = useState<string | null>(null);
+
   return (
     <Input
       {...props}
       type="text"
       inputMode="numeric"
       pattern="[0-9]*"
-      value={value}
+      value={emptyText ?? String(value)}
       onChange={(event) => {
         const digits = event.currentTarget.value.replace(/\D/g, '');
         if (!digits) {
-          onValueChange(min);
+          setEmptyText('');
           return;
         }
+        setEmptyText(null);
         const parsed = Number(digits);
         onValueChange(Math.min(max ?? parsed, Math.max(min, parsed)));
+      }}
+      onBlur={(event: FocusEvent<HTMLInputElement>) => {
+        if (emptyText === '') {
+          setEmptyText(null);
+          onValueChange(min);
+        }
+        onBlur?.(event);
       }}
     />
   );

@@ -46,7 +46,7 @@ export function ProfileForm() {
     return (
       <Card>
         <ErrorState
-          title="Nao foi possivel abrir seu perfil"
+          title="Não foi possível abrir seu perfil"
           description={describeApiError(profile.error, 'Falha inesperada ao carregar o perfil.')}
           onRetry={() => void profile.refetch()}
         />
@@ -92,11 +92,11 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
     onSuccess: (updated) => {
       queryClient.setQueryData(profileKeys.me, updated);
       toast.success(
-        profile.onboardingCompletedAt ? 'Perfil atualizado.' : 'Configuracao inicial concluida.',
+        profile.onboardingCompletedAt ? 'Perfil atualizado.' : 'Configuração inicial concluída.',
       );
     },
     onError: async (error) => {
-      toast.error(describeApiError(error, 'Nao foi possivel salvar o perfil.'));
+      toast.error(describeApiError(error, 'Não foi possível salvar o perfil.'));
       if (error instanceof Error && 'code' in error && error.code === 'RESOURCE_VERSION_CONFLICT') {
         await queryClient.invalidateQueries({ queryKey: profileKeys.me });
       }
@@ -149,16 +149,16 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {!profile.onboardingCompletedAt ? (
         <Card className="border-primary/30 bg-primary/5">
-          <CardTitle>Conclua sua configuracao inicial</CardTitle>
+          <CardTitle>Conclua sua configuração inicial</CardTitle>
           <CardDescription className="mt-1">
-            Estes dados personalizam a duracao, os dias e as metas das suas fichas.
+            Estes dados personalizam a duração, os dias e as metas das suas fichas.
           </CardDescription>
         </Card>
       ) : null}
 
       {mutation.isError ? (
         <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-          {describeApiError(mutation.error, 'Nao foi possivel salvar o perfil.')}
+          {describeApiError(mutation.error, 'Não foi possível salvar o perfil.')}
         </p>
       ) : null}
 
@@ -188,17 +188,17 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
               onChange={(event) => setBirthDate(event.target.value)}
             />
           </FormField>
-          <FormField id="profile-sex" label="Sexo biologico">
+          <FormField id="profile-sex" label="Sexo biológico">
             <Select
               id="profile-sex"
               value={biologicalSex}
               onChange={(event) => setBiologicalSex(event.target.value)}
             >
-              <option value="">Nao informar</option>
+              <option value="">Não informar</option>
               <option value="FEMALE">Feminino</option>
               <option value="MALE">Masculino</option>
               <option value="INTERSEX">Intersexo</option>
-              <option value="UNDISCLOSED">Prefiro nao dizer</option>
+              <option value="UNDISCLOSED">Prefiro não dizer</option>
             </Select>
           </FormField>
         </div>
@@ -234,23 +234,23 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
             onChange={(event) => setGoal(event.target.value as typeof goal)}
           >
             <option value="HYPERTROPHY">Hipertrofia</option>
-            <option value="STRENGTH">Forca</option>
+            <option value="STRENGTH">Força</option>
             <option value="WEIGHT_LOSS">Emagrecimento</option>
-            <option value="RECOMPOSITION">Recomposicao corporal</option>
+            <option value="RECOMPOSITION">Recomposição corporal</option>
             <option value="CONDITIONING">Condicionamento</option>
-            <option value="HEALTH">Saude</option>
+            <option value="HEALTH">Saúde</option>
           </Select>
         </FormField>
 
-        <FormField id="profile-experience" label="Experiencia">
+        <FormField id="profile-experience" label="Experiência">
           <Select
             id="profile-experience"
             value={experience}
             onChange={(event) => setExperience(event.target.value as typeof experience)}
           >
             <option value="BEGINNER">Iniciante</option>
-            <option value="INTERMEDIATE">Intermediario</option>
-            <option value="ADVANCED">Avancado</option>
+            <option value="INTERMEDIATE">Intermediário</option>
+            <option value="ADVANCED">Avançado</option>
           </Select>
         </FormField>
 
@@ -265,7 +265,7 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
               required
             />
           </FormField>
-          <FormField id="profile-duration" label="Duracao (min)">
+          <FormField id="profile-duration" label="Duração (min)">
             <IntegerInput
               id="profile-duration"
               min={5}
@@ -278,7 +278,7 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
         </div>
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-medium">Dias disponiveis</legend>
+          <legend className="text-sm font-medium">Dias disponíveis</legend>
           <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3 min-[440px]:grid-cols-4">
             {WEEKDAYS.map(([value, label]) => (
               <label
@@ -307,8 +307,8 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
         </FormField>
         <FormField
           id="profile-equipment"
-          label="Equipamentos disponiveis"
-          hint="Separe por virgula, por exemplo: barra, halteres, polia."
+          label="Equipamentos disponíveis"
+          hint="Separe por vírgula, por exemplo: barra, halteres, polia."
         >
           <Input
             id="profile-equipment"
@@ -317,7 +317,7 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
             placeholder="barra, halteres, banco"
           />
         </FormField>
-        <FormField id="profile-limitations" label="Limitacoes ou cuidados">
+        <FormField id="profile-limitations" label="Limitações ou cuidados">
           <Textarea
             id="profile-limitations"
             value={limitations}
@@ -328,9 +328,9 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
       </Card>
 
       <Card className="flex flex-col gap-4">
-        <CardTitle>Preferencias do treino</CardTitle>
+        <CardTitle>Preferências do treino</CardTitle>
         <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
-          <FormField id="profile-rest" label="Descanso padrao (s)">
+          <FormField id="profile-rest" label="Descanso padrão (s)">
             <IntegerInput
               id="profile-rest"
               min={0}
@@ -348,19 +348,19 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
             required
           />
         </div>
-        <FormField id="profile-timezone" label="Fuso horario">
+        <FormField id="profile-timezone" label="Fuso horário">
           <Select
             id="profile-timezone"
             value={timezone}
             onChange={(event) => setTimezone(event.target.value as ProfileTimezone)}
           >
-            <option value="America/Sao_Paulo">Brasilia</option>
+            <option value="America/Sao_Paulo">Brasília</option>
             <option value="America/Manaus">Manaus</option>
-            <option value="America/Belem">Belem</option>
+            <option value="America/Belem">Belém</option>
             <option value="America/Fortaleza">Fortaleza</option>
             <option value="America/Recife">Recife</option>
             <option value="America/Bahia">Bahia</option>
-            <option value="America/Cuiaba">Cuiaba</option>
+            <option value="America/Cuiaba">Cuiabá</option>
             <option value="America/Campo_Grande">Campo Grande</option>
             <option value="America/Porto_Velho">Porto Velho</option>
             <option value="America/Rio_Branco">Rio Branco</option>
@@ -371,7 +371,7 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
         </FormField>
         {/* Duas datas lado a lado é o caso mais apertado; vale o mesmo limite. */}
         <div className="grid grid-cols-1 gap-3 min-[440px]:grid-cols-2">
-          <FormField id="profile-start" label="Inicio do plano">
+          <FormField id="profile-start" label="Início do plano">
             <DateInput
               id="profile-start"
               value={startDate}
@@ -393,7 +393,7 @@ function ProfileEditor({ profile }: { readonly profile: Profile }) {
           ? 'Salvando...'
           : profile.onboardingCompletedAt
             ? 'Salvar perfil'
-            : 'Concluir configuracao'}
+            : 'Concluir configuração'}
       </Button>
     </form>
   );

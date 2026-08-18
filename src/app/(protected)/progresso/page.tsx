@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: 'Progresso' };
 export default function ProgressoPage() {
   return (
     <>
-      <PageHeader title="Progresso" subtitle="Historico, recordes e medidas." />
+      <PageHeader title="Progresso" subtitle="Histórico, recordes e medidas." />
       <ProgressDashboard />
     </>
   );

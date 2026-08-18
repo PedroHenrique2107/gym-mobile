@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { apiClient } from '@/lib/api/client';
 import type { components, paths } from '@/lib/api/generated/types';
 import { describeApiError, requireApiData } from '@/lib/api/result';
+import { useProfile } from '@/features/profile/use-profile';
 
 type ExerciseSummary = components['schemas']['ExerciseSummaryResponse'];
 type ExerciseDetail = components['schemas']['ExerciseDetailResponse'];
@@ -35,12 +36,12 @@ const MUSCLES: readonly [MuscleGroup, string][] = [
   ['CHEST', 'Peito'],
   ['BACK', 'Costas'],
   ['SHOULDERS', 'Ombros'],
-  ['BICEPS', 'Biceps'],
-  ['TRICEPS', 'Triceps'],
-  ['FOREARMS', 'Antebracos'],
+  ['BICEPS', 'Bíceps'],
+  ['TRICEPS', 'Tríceps'],
+  ['FOREARMS', 'Antebraços'],
   ['CORE', 'Core'],
-  ['GLUTES', 'Gluteos'],
-  ['QUADS', 'Quadriceps'],
+  ['GLUTES', 'Glúteos'],
+  ['QUADS', 'Quadríceps'],
   ['HAMSTRINGS', 'Posteriores'],
   ['CALVES', 'Panturrilhas'],
   ['FULL_BODY', 'Corpo inteiro'],
@@ -49,11 +50,11 @@ const MUSCLES: readonly [MuscleGroup, string][] = [
 const EQUIPMENT: readonly [Equipment, string][] = [
   ['BARBELL', 'Barra'],
   ['DUMBBELL', 'Halter'],
-  ['MACHINE', 'Maquina'],
+  ['MACHINE', 'Máquina'],
   ['CABLE', 'Polia'],
   ['BODYWEIGHT', 'Peso corporal'],
   ['KETTLEBELL', 'Kettlebell'],
-  ['BAND', 'Elastico'],
+  ['BAND', 'Elástico'],
   ['BENCH', 'Banco'],
   ['OTHER', 'Outro'],
 ];
@@ -70,6 +71,8 @@ export function ExerciseLibrary() {
   const [editing, setEditing] = useState<ExerciseDetail | null>(null);
   const [creating, setCreating] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const profile = useProfile();
+  const isAdmin = profile.data?.role === 'ADMIN';
 
   const filters: ExerciseQuery = {
     limit: 100,
@@ -87,7 +90,7 @@ export function ExerciseLibrary() {
       const { data, error } = await apiClient.GET('/api/v1/exercises', {
         params: { query: filters },
       });
-      return requireApiData(data, error, 'listar os exercicios');
+      return requireApiData(data, error, 'listar os exercícios');
     },
   });
 
@@ -96,16 +99,16 @@ export function ExerciseLibrary() {
       const { data, error } = await apiClient.DELETE('/api/v1/exercises/{id}', {
         params: { path: { id: exercise.id } },
       });
-      return requireApiData(data, error, 'excluir o exercicio');
+      return requireApiData(data, error, 'excluir o exercício');
     },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
       toast.success(
-        result.archived ? 'Exercicio arquivado porque esta em uso.' : 'Exercicio excluido.',
+        result.archived ? 'Exercício arquivado porque está em uso.' : 'Exercício excluído.',
       );
     },
     onError: (error) =>
-      toast.error(describeApiError(error, 'Nao foi possivel remover o exercicio.')),
+      toast.error(describeApiError(error, 'Não foi possível remover o exercício.')),
   });
 
   async function openEditor(id: string): Promise<void> {
@@ -114,10 +117,10 @@ export function ExerciseLibrary() {
       const { data, error } = await apiClient.GET('/api/v1/exercises/{id}', {
         params: { path: { id } },
       });
-      setEditing(requireApiData(data, error, 'abrir o exercicio'));
+      setEditing(requireApiData(data, error, 'abrir o exercício'));
       setCreating(false);
     } catch (error) {
-      toast.error(describeApiError(error, 'Nao foi possivel abrir o exercicio.'));
+      toast.error(describeApiError(error, 'Não foi possível abrir o exercício.'));
     } finally {
       setLoadingId(null);
     }
@@ -220,7 +223,7 @@ export function ExerciseLibrary() {
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-3.5 size-4 text-muted-foreground" />
                   <Input
-                    aria-label="Buscar exercicio"
+                    aria-label="Buscar exercício"
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     className="pl-9"
@@ -233,7 +236,7 @@ export function ExerciseLibrary() {
                     value={muscle}
                     onChange={(event) => setMuscle(event.target.value as MuscleGroup | '')}
                   >
-                    <option value="">Todos os musculos</option>
+                    <option value="">Todos os músculos</option>
                     {MUSCLES.map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
@@ -258,8 +261,8 @@ export function ExerciseLibrary() {
                     onChange={(event) => setOrigin(event.target.value as typeof origin)}
                   >
                     <option value="">Todas as origens</option>
-                    <option value="global">Catalogo</option>
-                    <option value="custom">Meus exercicios</option>
+                    <option value="global">Catálogo</option>
+                    <option value="custom">Meus exercícios</option>
                   </Select>
                   <label className="tap flex items-center gap-2 rounded-lg border border-input px-3 text-sm">
                     <input
@@ -278,7 +281,7 @@ export function ExerciseLibrary() {
                   <ErrorState
                     description={describeApiError(
                       exercises.error,
-                      'Falha ao carregar a biblioteca.',
+                      'Não foi possível carregar a biblioteca.',
                     )}
                     onRetry={() => void exercises.refetch()}
                   />
@@ -287,8 +290,8 @@ export function ExerciseLibrary() {
               {exercises.data?.data.length === 0 ? (
                 <Card>
                   <EmptyState
-                    title="Nenhum exercicio encontrado"
-                    description="Altere os filtros ou crie um exercicio personalizado."
+                    title="Nenhum exercício encontrado"
+                    description="Altere os filtros ou crie um exercício personalizado."
                   />
                 </Card>
               ) : null}
@@ -300,7 +303,7 @@ export function ExerciseLibrary() {
                       <div className="flex flex-wrap items-center gap-2">
                         <CardTitle className="truncate">{exercise.name}</CardTitle>
                         <Badge variant={exercise.isGlobal ? 'neutral' : 'primary'}>
-                          {exercise.isGlobal ? 'Catalogo' : 'Seu'}
+                          {exercise.isGlobal ? 'Catálogo' : 'Seu'}
                         </Badge>
                         {exercise.isArchived ? <Badge variant="warning">Arquivado</Badge> : null}
                       </div>
@@ -309,7 +312,7 @@ export function ExerciseLibrary() {
                         · {difficultyLabel(exercise.difficulty)}
                       </CardDescription>
                     </div>
-                    {!exercise.isGlobal ? (
+                    {!exercise.isGlobal || isAdmin ? (
                       <div className="flex shrink-0">
                         <Button
                           size="icon"
@@ -385,20 +388,20 @@ function ExerciseForm({
           },
           body,
         });
-        return requireApiData(data, error, 'atualizar o exercicio');
+        return requireApiData(data, error, 'atualizar o exercício');
       }
 
       const body: CreateExerciseRequest = common;
       const { data, error } = await apiClient.POST('/api/v1/exercises', { body });
-      return requireApiData(data, error, 'criar o exercicio');
+      return requireApiData(data, error, 'criar o exercício');
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: exerciseKeys.all });
-      toast.success(exercise ? 'Exercicio atualizado.' : 'Exercicio criado.');
+      toast.success(exercise ? 'Exercício atualizado.' : 'Exercício criado.');
       onSaved();
     },
     onError: (error) =>
-      toast.error(describeApiError(error, 'Nao foi possivel salvar o exercicio.')),
+      toast.error(describeApiError(error, 'Não foi possível salvar o exercício.')),
   });
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
@@ -409,7 +412,7 @@ function ExerciseForm({
   return (
     <Card>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <CardTitle>{exercise ? 'Editar exercicio' : 'Novo exercicio'}</CardTitle>
+        <CardTitle>{exercise ? 'Editar exercício' : 'Novo exercício'}</CardTitle>
         <FormField id="exercise-name" label="Nome">
           <Input
             id="exercise-name"
@@ -453,12 +456,12 @@ function ExerciseForm({
             value={difficulty}
             onChange={(event) => setDifficulty(event.target.value as Difficulty)}
           >
-            <option value="EASY">Facil</option>
-            <option value="MEDIUM">Media</option>
-            <option value="HARD">Dificil</option>
+            <option value="EASY">Fácil</option>
+            <option value="MEDIUM">Média</option>
+            <option value="HARD">Difícil</option>
           </Select>
         </FormField>
-        <FormField id="exercise-instructions" label="Instrucoes">
+        <FormField id="exercise-instructions" label="Instruções">
           <Textarea
             id="exercise-instructions"
             value={instructions}
@@ -496,7 +499,7 @@ function equipmentLabel(value: Equipment): string {
 }
 
 function difficultyLabel(value: Difficulty): string {
-  return { EASY: 'Facil', MEDIUM: 'Media', HARD: 'Dificil' }[value];
+  return { EASY: 'Fácil', MEDIUM: 'Média', HARD: 'Difícil' }[value];
 }
 
 function emptyToNull(value: string): string | null {

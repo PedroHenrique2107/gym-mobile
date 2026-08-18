@@ -25,12 +25,12 @@ type MetricKey = Exclude<keyof CreateMeasurement, 'measuredOn' | 'notes'>;
 const METRICS: readonly [MetricKey, string, string][] = [
   ['weightKg', 'Peso', 'kg'],
   ['bodyFatPercentage', 'Gordura corporal', '%'],
-  ['neckCm', 'Pescoco', 'cm'],
-  ['chestCm', 'Torax', 'cm'],
+  ['neckCm', 'Pescoço', 'cm'],
+  ['chestCm', 'Tórax', 'cm'],
   ['waistCm', 'Cintura', 'cm'],
   ['hipsCm', 'Quadril', 'cm'],
-  ['leftArmCm', 'Braco esquerdo', 'cm'],
-  ['rightArmCm', 'Braco direito', 'cm'],
+  ['leftArmCm', 'Braço esquerdo', 'cm'],
+  ['rightArmCm', 'Braço direito', 'cm'],
   ['leftThighCm', 'Coxa esquerda', 'cm'],
   ['rightThighCm', 'Coxa direita', 'cm'],
   ['leftCalfCm', 'Panturrilha esquerda', 'cm'],
@@ -84,11 +84,11 @@ export function MeasurementsPanel() {
       await queryClient.invalidateQueries({ queryKey: progressKeys.measurements });
       setEditing(null);
       setForm(emptyForm());
-      toast.success('Avaliacao corporal salva.');
+      toast.success('Avaliação corporal salva.');
     },
     onError: async (error) => {
       await queryClient.invalidateQueries({ queryKey: progressKeys.measurements });
-      toast.error(describeApiError(error, 'Nao foi possivel salvar as medidas.'));
+      toast.error(describeApiError(error, 'Não foi possível salvar as medidas.'));
     },
   });
 
@@ -101,10 +101,10 @@ export function MeasurementsPanel() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: progressKeys.measurements });
-      toast.success('Avaliacao corporal excluida.');
+      toast.success('Avaliação corporal excluída.');
     },
     onError: (error) =>
-      toast.error(describeApiError(error, 'Nao foi possivel excluir as medidas.')),
+      toast.error(describeApiError(error, 'Não foi possível excluir as medidas.')),
   });
 
   function submit(event: FormEvent<HTMLFormElement>): void {
@@ -133,10 +133,10 @@ export function MeasurementsPanel() {
       <Card>
         <CardTitle id="measurements-title">Medidas corporais</CardTitle>
         <CardDescription className="mt-1">
-          Preencha somente o que mediu. Os valores ficam no seu historico real.
+          Preencha somente o que mediu. Os valores ficam no seu histórico real.
         </CardDescription>
         <form className="mt-4 flex flex-col gap-3" onSubmit={submit}>
-          <FormField id="measurement-date" label="Data da avaliacao">
+          <FormField id="measurement-date" label="Data da avaliação">
             <DateInput
               id="measurement-date"
               value={form.measuredOn}
@@ -163,7 +163,7 @@ export function MeasurementsPanel() {
               </FormField>
             ))}
           </div>
-          <FormField id="measurement-notes" label="Observacoes">
+          <FormField id="measurement-notes" label="Observações">
             <Textarea
               id="measurement-notes"
               value={form.notes}
@@ -195,16 +195,16 @@ export function MeasurementsPanel() {
       </Card>
 
       <Card>
-        <CardTitle>Evolucao registrada</CardTitle>
+        <CardTitle>Evolução registrada</CardTitle>
         <WeightTrend measurements={data} />
         {measurements.isPending ? <p className="mt-3 text-sm">Carregando medidas...</p> : null}
         {measurements.isError ? (
           <p role="alert" className="mt-3 text-sm text-destructive">
-            {describeApiError(measurements.error, 'Nao foi possivel carregar as medidas.')}
+            {describeApiError(measurements.error, 'Não foi possível carregar as medidas.')}
           </p>
         ) : null}
         {measurements.isSuccess && data.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">Nenhuma avaliacao registrada.</p>
+          <p className="mt-3 text-sm text-muted-foreground">Nenhuma avaliação registrada.</p>
         ) : null}
         <ul className="mt-3 divide-y divide-border">
           {[...data].reverse().map((measurement) => (
@@ -215,7 +215,7 @@ export function MeasurementsPanel() {
               <div>
                 <p className="font-medium">{formatCivilDate(measurement.measuredOn)}</p>
                 <p className="text-xs text-muted-foreground">
-                  {measurement.weightKg ? `${measurement.weightKg} kg` : 'Peso nao informado'}
+                  {measurement.weightKg ? `${measurement.weightKg} kg` : 'Peso não informado'}
                   {measurement.bodyFatPercentage
                     ? ` · ${measurement.bodyFatPercentage}% gordura`
                     : ''}
@@ -226,7 +226,7 @@ export function MeasurementsPanel() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  aria-label="Editar avaliacao"
+                  aria-label="Editar avaliação"
                   onClick={() => edit(measurement)}
                 >
                   <Pencil />
@@ -234,10 +234,10 @@ export function MeasurementsPanel() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  aria-label="Excluir avaliacao"
+                  aria-label="Excluir avaliação"
                   disabled={remove.isPending}
                   onClick={() => {
-                    if (window.confirm('Excluir esta avaliacao corporal?'))
+                    if (window.confirm('Excluir esta avaliação corporal?'))
                       remove.mutate(measurement.id);
                   }}
                 >

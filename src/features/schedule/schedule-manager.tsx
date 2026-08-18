@@ -25,7 +25,7 @@ type ScheduleDay = components['schemas']['ScheduleDayResponse'];
 type OverrideKind = components['schemas']['ScheduleOverrideKind'];
 type SetOverrideRequest = components['schemas']['SetScheduleOverrideRequest'];
 
-const WEEKDAY_NAMES = ['Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado', 'Domingo'];
+const WEEKDAY_NAMES = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
 const scheduleKeys = {
   all: ['schedule'] as const,
@@ -96,7 +96,7 @@ export function ScheduleManager() {
       await invalidate();
       toast.success('Agenda semanal atualizada.');
     },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel alterar a semana.')),
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível alterar a semana.')),
   });
 
   const saveOverride = useMutation({
@@ -111,13 +111,13 @@ export function ScheduleManager() {
         },
         body,
       });
-      return requireApiData(data, error, 'salvar a excecao');
+      return requireApiData(data, error, 'salvar a exceção');
     },
     onSuccess: async () => {
       await invalidate();
-      toast.success('Excecao da agenda salva.');
+      toast.success('Exceção da agenda salva.');
     },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel salvar a excecao.')),
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível salvar a exceção.')),
   });
 
   const removeOverride = useMutation({
@@ -125,13 +125,13 @@ export function ScheduleManager() {
       const { error } = await apiClient.DELETE('/api/v1/schedule/overrides/{date}', {
         params: { path: { date } },
       });
-      requireApiSuccess(error, 'remover a excecao');
+      requireApiSuccess(error, 'remover a exceção');
     },
     onSuccess: async () => {
       await invalidate();
       toast.success('O dia voltou a seguir a agenda semanal.');
     },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel remover a excecao.')),
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível remover a exceção.')),
   });
 
   function editDay(day: ScheduleDay): void {
@@ -160,7 +160,7 @@ export function ScheduleManager() {
     return (
       <Card>
         <ErrorState
-          title="Nao foi possivel carregar a agenda"
+          title="Não foi possível carregar a agenda"
           description={describeApiError(queryError, 'Falha inesperada ao carregar a agenda.')}
           onRetry={() => {
             void weekly.refetch();
@@ -215,7 +215,7 @@ export function ScheduleManager() {
       <section aria-labelledby="resolved-title" className="flex flex-col gap-3">
         <div>
           <h2 id="resolved-title" className="text-lg font-semibold">
-            Proximos 14 dias
+            Próximos 14 dias
           </h2>
           <p className="text-sm text-muted-foreground">
             Semana combinada com descansos, trocas e reagendamentos.
@@ -237,7 +237,7 @@ export function ScheduleManager() {
               </div>
               <div className="flex flex-wrap justify-end gap-1">
                 {day.isRest ? <Badge variant="warning">Descanso</Badge> : null}
-                {day.override ? <Badge variant="primary">Excecao</Badge> : null}
+                {day.override ? <Badge variant="primary">Exceção</Badge> : null}
               </div>
             </div>
             {day.items.map((item) => (
@@ -259,7 +259,7 @@ export function ScheduleManager() {
         <Card>
           <form onSubmit={handleOverride} className="flex flex-col gap-3">
             <div>
-              <CardTitle id="exception-title">Excecao por data</CardTitle>
+              <CardTitle id="exception-title">Exceção por data</CardTitle>
               <CardDescription className="mt-1">
                 Marque descanso, troque a ficha ou mova o treino para outra data.
               </CardDescription>
@@ -278,7 +278,7 @@ export function ScheduleManager() {
                 required
               />
             </FormField>
-            <FormField id="exception-kind" label="Acao">
+            <FormField id="exception-kind" label="Ação">
               <Select
                 id="exception-kind"
                 value={kind}
@@ -316,7 +316,7 @@ export function ScheduleManager() {
                 />
               </FormField>
             ) : null}
-            <FormField id="exception-notes" label="Observacao">
+            <FormField id="exception-notes" label="Observação">
               <Textarea
                 id="exception-notes"
                 value={notes}
@@ -332,7 +332,7 @@ export function ScheduleManager() {
                   !resolved.data?.days.some((day) => day.date === selectedDate && day.override)
                 }
                 onClick={() => {
-                  if (window.confirm('Remover a excecao e voltar a seguir a semana?')) {
+                  if (window.confirm('Remover a exceção e voltar a seguir a semana?')) {
                     removeOverride.mutate(selectedDate);
                   }
                 }}
@@ -347,7 +347,7 @@ export function ScheduleManager() {
                   (kind === 'RESCHEDULED' && !movedToDate)
                 }
               >
-                {saveOverride.isPending ? 'Salvando...' : 'Salvar excecao'}
+                {saveOverride.isPending ? 'Salvando...' : 'Salvar exceção'}
               </Button>
             </div>
           </form>
@@ -362,6 +362,6 @@ function originLabel(
   movedFrom: string | null,
 ): string {
   if (origin === 'RECURRING') return 'Vem da semana recorrente.';
-  if (origin === 'REPLACED') return 'Ficha substituida somente nesta data.';
+  if (origin === 'REPLACED') return 'Ficha substituída somente nesta data.';
   return `Reagendado de ${movedFrom ? formatCivilDate(movedFrom) : 'outra data'}.`;
 }

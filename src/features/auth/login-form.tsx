@@ -58,7 +58,7 @@ export function LoginForm() {
     } catch {
       // Falha antes de o Supabase responder — rede caída ou configuração
       // ausente. A mensagem original citaria a URL do projeto.
-      setFormError('Nao foi possivel conectar. Verifique sua internet.');
+      setFormError('Não foi possível conectar. Verifique sua internet.');
     } finally {
       setSubmitting(false);
     }

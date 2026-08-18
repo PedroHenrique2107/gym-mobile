@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: 'Treinar' };
 export default function TreinarPage() {
   return (
     <>
-      <PageHeader title="Treinar" subtitle="Selecione uma ficha para comecar." />
+      <PageHeader title="Treinar" subtitle="Selecione uma ficha para começar." />
       <div className="flex flex-col gap-8">
         <TrainingSession />
         <WorkoutManager />

@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
  * do minimo de 44 px.
  */
 const TABS = [
-  { href: '/inicio', label: 'Inicio', icon: House },
+  { href: '/inicio', label: 'Início', icon: House },
   { href: '/treinar', label: 'Treinar', icon: Dumbbell },
   { href: '/agenda', label: 'Agenda', icon: CalendarDays },
   { href: '/progresso', label: 'Progresso', icon: LineChart },
@@ -26,7 +26,7 @@ export function BottomNav() {
 
   return (
     <nav
-      aria-label="Navegacao principal"
+      aria-label="Navegação principal"
       className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card/95 backdrop-blur"
     >
       <ul className="safe-bottom mx-auto flex max-w-md items-stretch justify-between px-2 pt-1">

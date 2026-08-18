@@ -52,9 +52,9 @@ export function AdminAccountsPanel() {
     onSuccess: async () => {
       setEmail('');
       await refresh();
-      toast.success('Convite enviado. A conta aguarda senha e ativacao.');
+      toast.success('Convite enviado. A conta aguarda senha e ativação.');
     },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel enviar o convite.')),
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível enviar o convite.')),
   });
 
   const resend = useMutation({
@@ -67,7 +67,7 @@ export function AdminAccountsPanel() {
     },
     onSuccess: () => toast.success('Convite reenviado.'),
     onError: (error) =>
-      toast.error(describeApiError(error, 'Nao foi possivel reenviar o convite.')),
+      toast.error(describeApiError(error, 'Não foi possível reenviar o convite.')),
   });
 
   const status = useMutation({
@@ -82,7 +82,7 @@ export function AdminAccountsPanel() {
       await refresh();
       toast.success(updated.status === 'ACTIVE' ? 'Conta ativada.' : 'Conta desativada.');
     },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel alterar a conta.')),
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível alterar a conta.')),
   });
 
   const role = useMutation({
@@ -95,10 +95,10 @@ export function AdminAccountsPanel() {
     },
     onSuccess: async () => {
       await refresh();
-      toast.success('Permissao atualizada.');
+      toast.success('Permissão atualizada.');
     },
     onError: (error) =>
-      toast.error(describeApiError(error, 'Nao foi possivel alterar a permissao.')),
+      toast.error(describeApiError(error, 'Não foi possível alterar a permissão.')),
   });
 
   const remove = useMutation({
@@ -131,9 +131,9 @@ export function AdminAccountsPanel() {
         </span>
         <div>
           <h2 id="admin-accounts-title" className="text-lg font-semibold">
-            Administracao de contas
+            Administração de contas
           </h2>
-          <p className="text-sm text-muted-foreground">Convites, ativacao e permissoes.</p>
+          <p className="text-sm text-muted-foreground">Convites, ativação e permissões.</p>
         </div>
       </div>
 
@@ -173,7 +173,7 @@ export function AdminAccountsPanel() {
       {accounts.isPending ? <Card aria-busy="true">Carregando contas...</Card> : null}
       {accounts.isError ? (
         <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-          {describeApiError(accounts.error, 'Nao foi possivel carregar as contas.')}
+          {describeApiError(accounts.error, 'Não foi possível carregar as contas.')}
         </p>
       ) : null}
 
@@ -189,8 +189,8 @@ export function AdminAccountsPanel() {
                   </CardTitle>
                   <CardDescription className="mt-1">
                     {account.onboardingCompletedAt
-                      ? 'Perfil inicial concluido'
-                      : 'Ainda nao concluiu o perfil'}
+                      ? 'Perfil inicial concluído'
+                      : 'Ainda não concluiu o perfil'}
                   </CardDescription>
                 </div>
                 <Badge variant={statusVariant(account.status)}>{statusLabel(account.status)}</Badge>
@@ -198,12 +198,12 @@ export function AdminAccountsPanel() {
 
               <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
                 <Select
-                  aria-label={`Permissao de ${account.fullName ?? account.id}`}
+                  aria-label={`Permissão de ${account.fullName ?? account.id}`}
                   value={account.role}
                   disabled={isSelf || role.isPending}
                   onChange={(event) => {
                     const next = event.target.value as ProfileRole;
-                    if (window.confirm('Alterar a permissao desta conta?')) {
+                    if (window.confirm('Alterar a permissão desta conta?')) {
                       role.mutate({ account, next });
                     }
                   }}
@@ -281,7 +281,7 @@ function statusLabel(status: Account['status']): string {
     ACTIVE: 'Ativa',
     PENDING_INVITE: 'Convite pendente',
     INACTIVE: 'Inativa',
-    PENDING_DELETION: 'Exclusao pendente',
+    PENDING_DELETION: 'Exclusão pendente',
   }[status];
 }
 

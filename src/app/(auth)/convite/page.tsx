@@ -15,7 +15,7 @@ export default function ConvitePage() {
   return (
     <AuthLayout
       title="Bem-vindo ao GymFlow"
-      description="Defina uma senha para concluir a criacao da sua conta."
+      description="Defina uma senha para concluir a criação da sua conta."
     >
       <SetPasswordForm mode="convite" submitLabel="Criar minha conta" />
     </AuthLayout>
