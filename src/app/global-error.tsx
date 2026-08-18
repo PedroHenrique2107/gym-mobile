@@ -38,7 +38,7 @@ export default function GlobalError({
       >
         <main style={{ maxWidth: '24rem', textAlign: 'center' }}>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 0.5rem' }}>
-            O aplicativo nao pode ser carregado
+            O aplicativo não pode ser carregado
           </h1>
           <p
             style={{
@@ -48,7 +48,7 @@ export default function GlobalError({
               margin: '0 0 1.5rem',
             }}
           >
-            Feche e abra novamente. Se o problema continuar, verifique sua conexao.
+            Feche e abra novamente. Se o problema continuar, verifique sua conexão.
           </p>
           <button
             type="button"
@@ -69,7 +69,7 @@ export default function GlobalError({
           </button>
           {error.digest ? (
             <p style={{ fontSize: '0.75rem', color: '#a8adb4', marginTop: '1.5rem' }}>
-              Codigo: {error.digest}
+              Código: {error.digest}
             </p>
           ) : null}
         </main>

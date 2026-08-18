@@ -106,7 +106,7 @@ self.addEventListener('push', (event: PushEvent) => {
   const payload = readPushPayload(event.data);
   event.waitUntil(
     self.registration.showNotification(payload.title ?? 'GymFlow', {
-      body: payload.body ?? 'Voce tem uma atualizacao no GymFlow.',
+      body: payload.body ?? 'Você tem uma atualização no GymFlow.',
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
       tag: payload.tag ?? 'gymflow',

@@ -201,7 +201,7 @@ async function getWorkout(ownerId: string, workoutId: string): Promise<WorkoutDe
   } catch (error) {
     if (!isRetryable(error)) throw error;
     const cached = await readWorkout(ownerId, workoutId);
-    if (!cached) throw new Error('Esta ficha ainda nao foi salva para uso offline.');
+    if (!cached) throw new Error('Esta ficha ainda não foi salva para uso offline.');
     return cached;
   }
 }

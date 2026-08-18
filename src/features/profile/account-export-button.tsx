@@ -26,9 +26,9 @@ export function AccountExportButton() {
       anchor.download = 'gymflow-export.json';
       anchor.click();
       URL.revokeObjectURL(url);
-      toast.success('Exportacao preparada para download.');
+      toast.success('Exportação preparada para download.');
     } catch (error) {
-      toast.error(describeApiError(error, 'Nao foi possivel exportar seus dados.'));
+      toast.error(describeApiError(error, 'Não foi possível exportar seus dados.'));
     } finally {
       setExporting(false);
     }

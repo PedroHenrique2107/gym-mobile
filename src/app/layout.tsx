@@ -54,7 +54,15 @@ export default function RootLayout({ children }: { readonly children: React.Reac
     // `lang="pt-BR"` importa de verdade: define a pronuncia do leitor de tela e
     // a hifenizacao. O prototipo declarava ingles.
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className="min-h-dvh antialiased">
+      {/*
+        `suppressHydrationWarning` aqui existe por causa de extensoes de
+        navegador (gerenciador de senhas, bloqueador de anuncios, etc.) que
+        injetam elementos no <body> antes do React hidratar — ex.: um <div
+        hidden id="brk_yuan">. Esses nos nao vem do nosso HTML e o React nao
+        tem como preve-los; sem isso, o hydration mismatch forca a arvore
+        inteira a ser regenerada no cliente.
+      */}
+      <body className="min-h-dvh antialiased" suppressHydrationWarning>
         {/* Permite pular a navegacao repetida em cada pagina, no teclado. */}
         <a
           href="#conteudo"

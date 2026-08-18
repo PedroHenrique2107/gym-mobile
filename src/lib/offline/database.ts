@@ -21,7 +21,7 @@ let database: GymflowOfflineDatabase | null = null;
 
 export function getOfflineDatabase(): GymflowOfflineDatabase {
   if (typeof indexedDB === 'undefined') {
-    throw new Error('IndexedDB nao esta disponivel neste ambiente.');
+    throw new Error('IndexedDB não está disponível neste ambiente.');
   }
   database ??= new GymflowOfflineDatabase();
   return database;

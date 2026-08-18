@@ -50,7 +50,7 @@ export function RecoverPasswordForm() {
 
       setSent(true);
     } catch {
-      setFormError('Nao foi possivel conectar. Verifique sua internet.');
+      setFormError('Não foi possível conectar. Verifique sua internet.');
     } finally {
       setSubmitting(false);
     }
@@ -64,7 +64,7 @@ export function RecoverPasswordForm() {
         </FormSuccess>
 
         <p className="text-sm leading-relaxed text-muted-foreground">
-          O link vale por pouco tempo. Confira tambem a caixa de spam. Se nao chegar em alguns
+          O link vale por pouco tempo. Confira também a caixa de spam. Se não chegar em alguns
           minutos, tente novamente.
         </p>
 
@@ -106,7 +106,7 @@ export function RecoverPasswordForm() {
       </Field>
 
       <Button type="submit" size="lg" disabled={submitting}>
-        {submitting ? 'Enviando...' : 'Enviar link de recuperacao'}
+        {submitting ? 'Enviando...' : 'Enviar link de recuperação'}
       </Button>
     </form>
   );

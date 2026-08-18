@@ -143,20 +143,20 @@ async function execute(operation: OfflineOperation): Promise<SessionDetail | nul
         params: { path: { sessionId: operation.sessionId } },
         body: operation.body,
       });
-      return requireApiData(data, error, 'sincronizar o inicio do treino');
+      return requireApiData(data, error, 'sincronizar o início do treino');
     }
     case 'UPSERT_SET': {
       const { data, error } = await apiClient.PUT('/api/v1/sessions/{sessionId}/sets/{setId}', {
         params: { path: { sessionId: operation.sessionId, setId: operation.setId } },
         body: operation.body,
       });
-      return requireApiData(data, error, 'sincronizar a serie');
+      return requireApiData(data, error, 'sincronizar a série');
     }
     case 'DELETE_SET': {
       const { data, error } = await apiClient.DELETE('/api/v1/sessions/{sessionId}/sets/{setId}', {
         params: { path: { sessionId: operation.sessionId, setId: operation.setId } },
       });
-      return requireApiData(data, error, 'sincronizar a exclusao da serie');
+      return requireApiData(data, error, 'sincronizar a exclusão da série');
     }
     case 'REPLACE_EXERCISE_SETS': {
       const { data, error } = await apiClient.PUT(
@@ -171,7 +171,7 @@ async function execute(operation: OfflineOperation): Promise<SessionDetail | nul
           body: operation.body,
         },
       );
-      return requireApiData(data, error, 'sincronizar as series do exercicio');
+      return requireApiData(data, error, 'sincronizar as séries do exercício');
     }
     case 'SET_EXERCISE_STATUS': {
       const { data, error } = await apiClient.PUT(
@@ -186,7 +186,7 @@ async function execute(operation: OfflineOperation): Promise<SessionDetail | nul
           body: operation.body,
         },
       );
-      return requireApiData(data, error, 'sincronizar o exercicio');
+      return requireApiData(data, error, 'sincronizar o exercício');
     }
     case 'FINISH_SESSION': {
       const path =
@@ -204,7 +204,7 @@ async function execute(operation: OfflineOperation): Promise<SessionDetail | nul
     }
     default: {
       const exhaustive: never = operation;
-      throw new Error(`Operacao offline desconhecida: ${String(exhaustive)}`);
+      throw new Error(`Operação offline desconhecida: ${String(exhaustive)}`);
     }
   }
 }

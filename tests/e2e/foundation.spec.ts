@@ -95,7 +95,7 @@ test.describe('Telas de autenticacao', () => {
     await page.getByLabel('Senha').fill('qualquercoisa');
     await page.getByRole('button', { name: 'Entrar' }).click();
 
-    await expect(page.getByText('Informe um e-mail valido.')).toBeVisible();
+    await expect(page.getByText('Informe um e-mail válido.')).toBeVisible();
   });
 
   test('recuperacao de senha e alcancavel', async ({ page }) => {
@@ -159,7 +159,7 @@ test.describe('Erros', () => {
 
     expect(response?.status()).toBe(404);
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Pagina nao encontrada' }),
+      page.getByRole('heading', { level: 1, name: 'Página não encontrada' }),
     ).toBeVisible();
   });
 });
@@ -183,7 +183,7 @@ test.describe('Acessibilidade automatizada', () => {
   for (const [route, heading] of [
     ['/', 'GymFlow'],
     ['/entrar', 'Entrar'],
-    ['/offline', 'Voce esta offline'],
+    ['/offline', 'Você está offline'],
   ] as const) {
     test(`${route} nao possui violacoes WCAG A ou AA detectaveis`, async ({ page }) => {
       // Um gate automatizado nao substitui leitor de tela nem aparelho real,
@@ -255,7 +255,7 @@ test.describe('PWA', () => {
     try {
       await page.reload();
       await expect(
-        page.getByRole('heading', { level: 1, name: 'Voce esta offline' }),
+        page.getByRole('heading', { level: 1, name: 'Você está offline' }),
       ).toBeVisible();
     } finally {
       await context.setOffline(false);
@@ -283,7 +283,7 @@ test.describe('Status da API', () => {
 
     await page.goto('/status');
 
-    await expect(page.getByText('A API nao respondeu')).toBeVisible();
+    await expect(page.getByText('A API não respondeu')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
   });
 
@@ -311,8 +311,8 @@ test.describe('Status da API', () => {
     await expect(page.getByText('Respondendo')).toBeVisible();
     await expect(page.getByText('0.0.0')).toBeVisible();
     await expect(page.getByText('database', { exact: true })).toBeVisible();
-    // `exact` importa: "Nao configurada" tambem aparece no detalhe da
+    // `exact` importa: "Não configurada" tambem aparece no detalhe da
     // dependencia e no texto explicativo do rodape do card.
-    await expect(page.getByText('Nao configurada', { exact: true })).toBeVisible();
+    await expect(page.getByText('Não configurada', { exact: true })).toBeVisible();
   });
 });

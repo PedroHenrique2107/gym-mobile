@@ -11,10 +11,10 @@ export default function OfflinePage() {
         <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-warning/10 text-warning">
           <WifiOff aria-hidden="true" />
         </div>
-        <h1 className="text-xl font-bold">Voce esta offline</h1>
+        <h1 className="text-xl font-bold">Você está offline</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Se um treino ja estava salvo neste aparelho, abra Treinar para continuar registrando as
-          series. Fotos e administracao exigem conexao.
+          Se um treino já estava salvo neste aparelho, abra Treinar para continuar registrando as
+          séries. Fotos e administração exigem conexão.
         </p>
         <div className="mt-5 grid gap-2">
           <Link href="/treinar" className={buttonVariants({ size: 'lg' })}>

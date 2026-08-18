@@ -51,7 +51,7 @@ export function WorkoutManager() {
       const { data, error } = await apiClient.GET('/api/v1/exercises', {
         params: { query: { limit: 100 } },
       });
-      return requireApiData(data, error, 'listar os exercicios');
+      return requireApiData(data, error, 'listar os exercícios');
     },
   });
 
@@ -79,7 +79,7 @@ export function WorkoutManager() {
       await refresh();
       toast.success('Ficha arquivada e retirada da agenda semanal.');
     },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel arquivar a ficha.')),
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível arquivar a ficha.')),
   });
 
   const duplicate = useMutation({
@@ -94,7 +94,7 @@ export function WorkoutManager() {
       await refresh();
       toast.success('Ficha duplicada.');
     },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel duplicar a ficha.')),
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível duplicar a ficha.')),
   });
 
   const remove = useMutation({
@@ -106,9 +106,9 @@ export function WorkoutManager() {
     },
     onSuccess: async () => {
       await refresh();
-      toast.success('Ficha excluida.');
+      toast.success('Ficha excluída.');
     },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel excluir a ficha.')),
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível excluir a ficha.')),
   });
 
   const reorder = useMutation({
@@ -122,7 +122,7 @@ export function WorkoutManager() {
       await queryClient.invalidateQueries({ queryKey: workoutKeys.all });
     },
     onError: (error) =>
-      toast.error(describeApiError(error, 'Nao foi possivel reordenar as fichas.')),
+      toast.error(describeApiError(error, 'Não foi possível reordenar as fichas.')),
   });
 
   async function editWorkout(id: string): Promise<void> {
@@ -134,7 +134,7 @@ export function WorkoutManager() {
       setEditing(requireApiData(data, error, 'abrir a ficha'));
       setCreating(false);
     } catch (error) {
-      toast.error(describeApiError(error, 'Nao foi possivel abrir a ficha.'));
+      toast.error(describeApiError(error, 'Não foi possível abrir a ficha.'));
     } finally {
       setLoadingId(null);
     }
@@ -159,7 +159,7 @@ export function WorkoutManager() {
           <h2 id="workouts-title" className="text-lg font-semibold">
             Minhas fichas
           </h2>
-          <p className="text-sm text-muted-foreground">Ordem, exercicios e metas de cada treino.</p>
+          <p className="text-sm text-muted-foreground">Ordem, exercícios e metas de cada treino.</p>
         </div>
         <Button
           size="sm"
@@ -189,7 +189,7 @@ export function WorkoutManager() {
       {workouts.isError ? (
         <Card>
           <ErrorState
-            description={describeApiError(workouts.error, 'Falha ao carregar as fichas.')}
+            description={describeApiError(workouts.error, 'Não foi possível carregar as fichas.')}
             onRetry={() => void workouts.refetch()}
           />
         </Card>
@@ -210,7 +210,7 @@ export function WorkoutManager() {
               <div className="min-w-0">
                 <CardTitle>{workout.name}</CardTitle>
                 <CardDescription className="mt-1">
-                  {workout.exerciseCount} {workout.exerciseCount === 1 ? 'exercicio' : 'exercicios'}
+                  {workout.exerciseCount} {workout.exerciseCount === 1 ? 'exercício' : 'exercícios'}
                   {workout.notes ? ` · ${workout.notes}` : ''}
                 </CardDescription>
               </div>
@@ -253,7 +253,7 @@ export function WorkoutManager() {
                 icon={<Archive />}
                 disabled={archive.isPending}
                 onClick={() => {
-                  if (window.confirm(`Arquivar "${workout.name}" e remove-la da agenda semanal?`)) {
+                  if (window.confirm(`Arquivar "${workout.name}" e removê-la da agenda semanal?`)) {
                     archive.mutate(workout);
                   }
                 }}
@@ -330,7 +330,7 @@ function WorkoutForm({
       toast.success(workout ? 'Ficha atualizada.' : 'Ficha criada.');
       onSaved();
     },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel salvar a ficha.')),
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível salvar a ficha.')),
   });
 
   function addExercise(): void {
@@ -340,8 +340,8 @@ function WorkoutForm({
       {
         exerciseId: selectedExerciseId,
         targetSets: 3,
-        repMin: 8,
-        repMax: 12,
+        repMin: 10,
+        repMax: 10,
         restSeconds: 90,
         notes: null,
       },
@@ -385,7 +385,7 @@ function WorkoutForm({
             required
           />
         </FormField>
-        <FormField id="workout-notes" label="Observacoes">
+        <FormField id="workout-notes" label="Observações">
           <Textarea
             id="workout-notes"
             value={notes}
@@ -395,16 +395,16 @@ function WorkoutForm({
         </FormField>
 
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium">Exercicios na ordem de execucao</p>
+          <p className="text-sm font-medium">Exercícios na ordem de execução</p>
           <div className="flex gap-2">
             <Select
-              aria-label="Exercicio para adicionar"
+              aria-label="Exercício para adicionar"
               value={selectedExerciseId}
               onChange={(event) => setSelectedExerciseId(event.target.value)}
               disabled={exercisesPending}
             >
               <option value="">
-                {exercisesPending ? 'Carregando...' : 'Selecione um exercicio'}
+                {exercisesPending ? 'Carregando...' : 'Selecione um exercício'}
               </option>
               {exercises
                 .filter((exercise) => !items.some((item) => item.exerciseId === exercise.id))
@@ -414,7 +414,7 @@ function WorkoutForm({
                   </option>
                 ))}
             </Select>
-            <Button size="icon" aria-label="Adicionar exercicio" onClick={addExercise}>
+            <Button size="icon" aria-label="Adicionar exercício" onClick={addExercise}>
               <Plus />
             </Button>
           </div>
@@ -422,7 +422,7 @@ function WorkoutForm({
 
         {items.length === 0 ? (
           <p className="rounded-lg bg-secondary/50 p-3 text-sm text-muted-foreground">
-            A ficha pode ser salva vazia e receber exercicios depois.
+            A ficha pode ser salva vazia e receber exercícios depois.
           </p>
         ) : null}
 
@@ -434,13 +434,13 @@ function WorkoutForm({
                   {exercises.find((exercise) => exercise.id === item.exerciseId)?.name ??
                     workout?.exercises.find((entry) => entry.exercise.id === item.exerciseId)
                       ?.exercise.name ??
-                    'Exercicio'}
+                    'Exercício'}
                 </p>
                 <div className="flex">
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label="Mover exercicio para cima"
+                    aria-label="Mover exercício para cima"
                     disabled={index === 0}
                     onClick={() => moveItem(index, -1)}
                   >
@@ -449,7 +449,7 @@ function WorkoutForm({
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label="Mover exercicio para baixo"
+                    aria-label="Mover exercício para baixo"
                     disabled={index === items.length - 1}
                     onClick={() => moveItem(index, 1)}
                   >
@@ -458,34 +458,27 @@ function WorkoutForm({
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label="Remover exercicio da ficha"
+                    aria-label="Remover exercício da ficha"
                     onClick={() => setItems((current) => current.filter((_, i) => i !== index))}
                   >
                     <X />
                   </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 min-[400px]:grid-cols-3">
                 <NumberField
-                  label="Series"
+                  label="Séries"
                   value={item.targetSets ?? 3}
                   min={1}
                   max={20}
                   onChange={(value) => updateItem(index, { targetSets: value })}
                 />
                 <NumberField
-                  label="Rep. min"
-                  value={item.repMin ?? 8}
+                  label="Repetições"
+                  value={item.repMax ?? item.repMin ?? 10}
                   min={1}
                   max={100}
-                  onChange={(value) => updateItem(index, { repMin: value })}
-                />
-                <NumberField
-                  label="Rep. max"
-                  value={item.repMax ?? 12}
-                  min={1}
-                  max={100}
-                  onChange={(value) => updateItem(index, { repMax: value })}
+                  onChange={(value) => updateItem(index, { repMin: value, repMax: value })}
                 />
                 <NumberField
                   label="Pausa (s)"
@@ -496,12 +489,12 @@ function WorkoutForm({
                 />
               </div>
               <Input
-                aria-label="Observacao deste exercicio"
+                aria-label="Observação deste exercício"
                 className="mt-2"
                 value={item.notes ?? ''}
                 onChange={(event) => updateItem(index, { notes: event.target.value || null })}
                 maxLength={500}
-                placeholder="Observacao opcional"
+                placeholder="Observação opcional"
               />
             </Card>
           ))}

@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: 'Perfil' };
 export default function PerfilPage() {
   return (
     <>
-      <PageHeader title="Perfil" subtitle="Seus dados, objetivo e preferencias." />
+      <PageHeader title="Perfil" subtitle="Seus dados, objetivo e preferências." />
 
       <ProfileForm />
       <AdminAccountsPanel />

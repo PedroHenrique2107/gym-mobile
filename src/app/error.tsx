@@ -43,7 +43,7 @@ export default function RouteError({
         // Conteudo principal da tela de erro: o titulo precisa ser o `h1`.
         titleAs="h1"
         title="Algo deu errado"
-        description={description ?? 'Nao conseguimos carregar esta tela. Tente novamente.'}
+        description={description ?? 'Não conseguimos carregar esta tela. Tente novamente.'}
         onRetry={reset}
       />
 

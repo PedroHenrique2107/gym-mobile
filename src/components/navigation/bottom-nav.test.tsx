@@ -15,14 +15,14 @@ describe('BottomNav', () => {
   it('expoe as cinco areas principais', () => {
     render(<BottomNav />);
 
-    for (const label of ['Inicio', 'Treinar', 'Agenda', 'Progresso', 'Perfil']) {
+    for (const label of ['Início', 'Treinar', 'Agenda', 'Progresso', 'Perfil']) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument();
     }
   });
 
   it('tem rotulo acessivel na navegacao', () => {
     render(<BottomNav />);
-    expect(screen.getByRole('navigation', { name: 'Navegacao principal' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Navegação principal' })).toBeInTheDocument();
   });
 
   it('marca a area atual com aria-current', () => {
@@ -31,7 +31,7 @@ describe('BottomNav', () => {
     render(<BottomNav />);
 
     expect(screen.getByRole('link', { name: 'Agenda' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Inicio' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Início' })).not.toHaveAttribute('aria-current');
   });
 
   it('mantem a area ativa em rotas filhas', () => {

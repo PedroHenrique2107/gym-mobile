@@ -9,6 +9,11 @@ export function addCivilDays(date: string, days: number): string {
   return formatCivil(value);
 }
 
+/** Data civil (fuso local) de um instante ISO, para comparar com `todayCivil()`. */
+export function civilDateFromIso(iso: string): string {
+  return formatCivil(new Date(iso));
+}
+
 export function formatCivilDate(value: string): string {
   const [year, month, day] = value.split('-').map(Number);
   return new Intl.DateTimeFormat('pt-BR', {

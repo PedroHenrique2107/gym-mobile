@@ -35,7 +35,7 @@ export function ApiStatusPanel() {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardTitle>Endereco configurado</CardTitle>
+        <CardTitle>Endereço configurado</CardTitle>
         <CardDescription className="mt-1 break-all">
           {/* Origem da API e valor publico: ja esta no bundle do navegador. */}
           <code>{env.apiUrl}</code>
@@ -47,7 +47,7 @@ export function ApiStatusPanel() {
       {!isLoading && health.isError ? (
         <Card>
           <ErrorState
-            title="A API nao respondeu"
+            title="A API não respondeu"
             description={describeError(health.error)}
             onRetry={refresh}
           />
@@ -61,8 +61,8 @@ export function ApiStatusPanel() {
             <Badge variant="success">Respondendo</Badge>
           </div>
           <dl className="mt-3 flex flex-col gap-2 text-sm">
-            <Row label="Versao" value={health.data.version} />
-            <Row label="No ar ha" value={formatUptime(health.data.uptimeSeconds)} />
+            <Row label="Versão" value={health.data.version} />
+            <Row label="No ar há" value={formatUptime(health.data.uptimeSeconds)} />
           </dl>
         </Card>
       ) : null}
@@ -70,7 +70,7 @@ export function ApiStatusPanel() {
       {readiness.isSuccess ? (
         <Card>
           <div className="flex items-start justify-between gap-3">
-            <CardTitle>Dependencias</CardTitle>
+            <CardTitle>Dependências</CardTitle>
             <ReadinessBadge status={readiness.data.status} />
           </div>
 
@@ -82,7 +82,7 @@ export function ApiStatusPanel() {
 
           {readiness.data.status === 'degraded' ? (
             <CardDescription className="mt-4 leading-relaxed">
-              Dependencias marcadas como nao configuradas sao esperadas nesta fase: banco de dados e
+              Dependências marcadas como não configuradas são esperadas nesta fase: banco de dados e
               Supabase Auth entram na fase S2 do backend.
             </CardDescription>
           ) : null}
@@ -133,12 +133,12 @@ function CheckRow({ check }: { readonly check: ApiReadinessCheck }) {
 function ReadinessBadge({ status }: { readonly status: 'ready' | 'degraded' | 'not_ready' }) {
   if (status === 'ready') return <Badge variant="success">Pronta</Badge>;
   if (status === 'degraded') return <Badge variant="warning">Parcial</Badge>;
-  return <Badge variant="danger">Nao pronta</Badge>;
+  return <Badge variant="danger">Não pronta</Badge>;
 }
 
 function CheckBadge({ status }: { readonly status: ApiReadinessCheck['status'] }) {
   if (status === 'up') return <Badge variant="success">No ar</Badge>;
-  if (status === 'unconfigured') return <Badge variant="neutral">Nao configurada</Badge>;
+  if (status === 'unconfigured') return <Badge variant="neutral">Não configurada</Badge>;
   return <Badge variant="danger">Fora</Badge>;
 }
 
@@ -152,7 +152,7 @@ function CheckBadge({ status }: { readonly status: ApiReadinessCheck['status'] }
 function describeError(error: unknown): string {
   if (error instanceof ApiError) {
     return error.status === 0
-      ? 'Nao foi possivel alcancar a API. Confirme que o gym-service esta rodando no endereco acima.'
+      ? 'Não foi possível alcançar a API. Confirme que o gym-service está rodando no endereço acima.'
       : error.message;
   }
 

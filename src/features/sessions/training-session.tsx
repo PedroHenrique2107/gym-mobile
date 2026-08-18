@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { WorkoutCelebration } from '@/components/feedback/workout-celebration';
+import { useProfile } from '@/features/profile/use-profile';
 import { workoutKeys } from '@/features/workouts/workout-manager';
 import type { components } from '@/lib/api/generated/types';
 import { describeApiError } from '@/lib/api/result';
@@ -19,15 +21,16 @@ import {
   loadActiveSession,
   loadWorkouts,
   saveTrainingExerciseSets,
+  saveTrainingSet,
   startTraining,
   updateTrainingExercise,
 } from '@/lib/offline/training';
 import { discardOfflineChanges, retryBlockedOperations } from '@/lib/offline/repository';
 import { syncOutbox } from '@/lib/offline/sync';
-import type { OfflineQueueStatus } from '@/lib/offline/types';
+import type { OfflineQueueStatus, UpsertSetRequest } from '@/lib/offline/types';
 import { useOfflineOwnerId, useOfflineQueueStatus } from '@/lib/offline/use-offline-status';
 
-import { ExerciseSetsModal, type ExerciseSetInput } from './exercise-sets-modal';
+import { ExerciseSetsForm, type ExerciseSetInput } from './exercise-sets-modal';
 
 type SessionDetail = components['schemas']['SessionDetailResponse'];
 type SessionExercise = components['schemas']['SessionExerciseResponse'];
@@ -41,9 +44,16 @@ export const sessionKeys = {
 export function TrainingSession() {
   const queryClient = useQueryClient();
   const [selectedWorkoutId, setSelectedWorkoutId] = useState('');
+  const [celebrating, setCelebrating] = useState(false);
+  const profile = useProfile();
   const owner = useOfflineOwnerId();
   const ownerId = owner.data;
   const queueStatus = useOfflineQueueStatus(ownerId);
+  const firstName = profile.data?.fullName?.trim().split(/\s+/)[0] ?? null;
+
+  const celebration = celebrating ? (
+    <WorkoutCelebration name={firstName} onDismiss={() => setCelebrating(false)} />
+  ) : null;
 
   const active = useQuery({
     queryKey: sessionKeys.active,
@@ -59,7 +69,7 @@ export function TrainingSession() {
 
   const start = useMutation({
     mutationFn: async (templateId: string) => {
-      if (!ownerId) throw new Error('A sessao local ainda nao esta disponivel.');
+      if (!ownerId) throw new Error('A sessão local ainda não está disponível.');
       return startTraining(ownerId, templateId, todayCivil());
     },
     onSuccess: (result) => {
@@ -70,7 +80,7 @@ export function TrainingSession() {
     },
     onError: async (error) => {
       await queryClient.invalidateQueries({ queryKey: sessionKeys.active });
-      toast.error(describeApiError(error, 'Nao foi possivel iniciar o treino.'));
+      toast.error(describeApiError(error, 'Não foi possível iniciar o treino.'));
     },
   });
 
@@ -80,7 +90,7 @@ export function TrainingSession() {
 
   if (!ownerId) {
     return (
-      <Card className="border-destructive/30">Nao foi possivel identificar a sessao local.</Card>
+      <Card className="border-destructive/30">Não foi possível identificar a sessão local.</Card>
     );
   }
 
@@ -92,7 +102,7 @@ export function TrainingSession() {
     return (
       <Card className="border-destructive/30">
         <p role="alert" className="text-sm text-destructive">
-          {describeApiError(active.error, 'Nao foi possivel verificar o treino em andamento.')}
+          {describeApiError(active.error, 'Não foi possível verificar o treino em andamento.')}
         </p>
         <Button className="mt-3" variant="outline" onClick={() => void active.refetch()}>
           Tentar novamente
@@ -102,44 +112,57 @@ export function TrainingSession() {
   }
 
   if (active.data) {
-    return <ActiveSessionView ownerId={ownerId} session={active.data} queueStatus={queueStatus} />;
+    return (
+      <>
+        <ActiveSessionView
+          ownerId={ownerId}
+          session={active.data}
+          queueStatus={queueStatus}
+          onCompleted={() => setCelebrating(true)}
+        />
+        {celebration}
+      </>
+    );
   }
 
   return (
-    <Card className="border-primary/30 bg-primary/5">
-      <div className="mb-3">
-        <CardTitle>Comecar treino</CardTitle>
-        <CardDescription className="mt-1">
-          A ficha vira um snapshot: alteracoes futuras nao mudam esta sessao.
-        </CardDescription>
-      </div>
-      <OfflineQueueNotice ownerId={ownerId} status={queueStatus} />
-      <div className="flex gap-2">
-        <Select
-          aria-label="Ficha para iniciar"
-          value={selectedWorkoutId}
-          onChange={(event) => setSelectedWorkoutId(event.target.value)}
-          disabled={workouts.isPending}
-        >
-          <option value="">
-            {workouts.isPending ? 'Carregando fichas...' : 'Selecione uma ficha'}
-          </option>
-          {workouts.data?.data.map((workout) => (
-            <option key={workout.id} value={workout.id}>
-              {workout.name} · {workout.exerciseCount} exercicios
+    <>
+      <Card className="border-primary/30 bg-primary/5">
+        <div className="mb-3">
+          <CardTitle>Começar treino</CardTitle>
+          <CardDescription className="mt-1">
+            A ficha vira um snapshot: alterações futuras não mudam esta sessão.
+          </CardDescription>
+        </div>
+        <OfflineQueueNotice ownerId={ownerId} status={queueStatus} />
+        <div className="flex gap-2">
+          <Select
+            aria-label="Ficha para iniciar"
+            value={selectedWorkoutId}
+            onChange={(event) => setSelectedWorkoutId(event.target.value)}
+            disabled={workouts.isPending}
+          >
+            <option value="">
+              {workouts.isPending ? 'Carregando fichas...' : 'Selecione uma ficha'}
             </option>
-          ))}
-        </Select>
-        <Button
-          size="icon"
-          aria-label="Iniciar treino selecionado"
-          disabled={!selectedWorkoutId || start.isPending}
-          onClick={() => start.mutate(selectedWorkoutId)}
-        >
-          <Play />
-        </Button>
-      </div>
-    </Card>
+            {workouts.data?.data.map((workout) => (
+              <option key={workout.id} value={workout.id}>
+                {workout.name} · {workout.exerciseCount} exercícios
+              </option>
+            ))}
+          </Select>
+          <Button
+            size="icon"
+            aria-label="Iniciar treino selecionado"
+            disabled={!selectedWorkoutId || start.isPending}
+            onClick={() => start.mutate(selectedWorkoutId)}
+          >
+            <Play />
+          </Button>
+        </div>
+      </Card>
+      {celebration}
+    </>
   );
 }
 
@@ -147,10 +170,12 @@ function ActiveSessionView({
   ownerId,
   session,
   queueStatus,
+  onCompleted,
 }: {
   readonly ownerId: string;
   readonly session: SessionDetail;
   readonly queueStatus: OfflineQueueStatus;
+  readonly onCompleted: () => void;
 }) {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState(session.notes ?? '');
@@ -169,15 +194,15 @@ function ActiveSessionView({
       exercise: SessionExercise;
       status: 'DONE' | 'SKIPPED';
     }) => {
-      if (!exercise.exerciseId) throw new Error('O exercicio de origem nao esta mais disponivel.');
+      if (!exercise.exerciseId) throw new Error('O exercício de origem não está mais disponível.');
       return updateTrainingExercise(ownerId, session, exercise.id, exercise.exerciseId, status);
     },
     onSuccess: (result) => {
       updateSession(result.session);
-      if (result.queued) toast.info('Alteracao salva offline.');
+      if (result.queued) toast.info('Alteração salva offline.');
     },
     onError: (error) =>
-      toast.error(describeApiError(error, 'Nao foi possivel atualizar o exercicio.')),
+      toast.error(describeApiError(error, 'Não foi possível atualizar o exercício.')),
   });
 
   const finish = useMutation({
@@ -190,11 +215,21 @@ function ActiveSessionView({
     },
     onSuccess: (result) => {
       queryClient.setQueryData(sessionKeys.active, null);
-      const label =
-        result.session.status === 'COMPLETED' ? 'Treino concluido.' : 'Treino abandonado.';
-      toast.success(result.queued ? `${label} Sincronizacao pendente.` : label);
+
+      if (result.session.status === 'COMPLETED') {
+        // A comemoracao (confete + nome) ja comunica a conclusao — o toast
+        // aqui so entra quando ha algo mais a dizer, que e a sincronizacao
+        // pendente.
+        onCompleted();
+        if (result.queued) toast.success('Treino concluído. Sincronização pendente.');
+        return;
+      }
+
+      toast.success(
+        result.queued ? 'Treino abandonado. Sincronização pendente.' : 'Treino abandonado.',
+      );
     },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel encerrar o treino.')),
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível encerrar o treino.')),
   });
 
   const restSeconds = restUntil === null ? 0 : Math.max(0, Math.ceil((restUntil - now) / 1000));
@@ -252,7 +287,7 @@ function ActiveSessionView({
             onClick={() => {
               if (
                 window.confirm(
-                  'Abandonar este treino? As series registradas continuam no historico.',
+                  'Abandonar este treino? As séries registradas continuam no histórico.',
                 )
               ) {
                 finish.mutate('abandon');
@@ -288,7 +323,7 @@ function ExerciseLogger({
   readonly onStatus: (status: 'DONE' | 'SKIPPED') => void;
 }) {
   const [expanded, setExpanded] = useState(exercise.status === 'PENDING');
-  const [setsModalOpen, setSetsModalOpen] = useState(false);
+  const [editingSets, setEditingSets] = useState(false);
 
   const saveSets = useMutation({
     mutationFn: async (sets: ExerciseSetInput[]) => {
@@ -297,7 +332,7 @@ function ExerciseLogger({
     onSuccess: (result) => {
       onUpdated(result.session);
       onRest(exercise.restSeconds);
-      setSetsModalOpen(false);
+      setEditingSets(false);
       toast.success(
         result.queued
           ? 'Exercício concluído e salvo neste aparelho.'
@@ -305,6 +340,20 @@ function ExerciseLogger({
       );
     },
     onError: (error) => toast.error(describeApiError(error, 'Não foi possível salvar as séries.')),
+  });
+
+  const saveSet = useMutation({
+    mutationFn: async ({ setId, body }: { setId: string; body: UpsertSetRequest }) => {
+      return saveTrainingSet(ownerId, session, setId, body);
+    },
+    onSuccess: (result) => {
+      onUpdated(result.session);
+      // A serie sozinha ja marca o fim daquele esforco — e daqui que o
+      // descanso deve comecar a contar, sem esperar o exercicio inteiro.
+      onRest(exercise.restSeconds);
+      if (result.queued) toast.info('Série salva neste aparelho.');
+    },
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível salvar esta série.')),
   });
 
   return (
@@ -332,56 +381,70 @@ function ExerciseLogger({
 
         {expanded ? (
           <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
-            {exercise.sets.length > 0 ? (
-              <ul className="flex flex-col gap-2">
-                {exercise.sets.map((set) => (
-                  <li key={set.id} className="rounded-lg bg-secondary/40 px-3 py-2 text-sm tabular">
-                    {set.isWarmup ? 'Aquecimento' : `Série ${set.setNumber}`}: {set.weightKg} kg ×{' '}
-                    {set.reps}
-                  </li>
-                ))}
-              </ul>
+            {!editingSets ? (
+              <>
+                {exercise.sets.length > 0 ? (
+                  <ul className="flex flex-col gap-2">
+                    {exercise.sets.map((set) => (
+                      <li
+                        key={set.id}
+                        className="rounded-lg bg-secondary/40 px-3 py-2 text-sm tabular"
+                      >
+                        {set.isWarmup ? 'Aquecimento' : `Série ${set.setNumber}`}: {set.weightKg} kg
+                        × {set.reps}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nenhuma série preenchida.</p>
+                )}
+
+                {exercise.status !== 'SKIPPED' ? (
+                  <Button size="lg" disabled={disabled} onClick={() => setEditingSets(true)}>
+                    <Check /> {exercise.sets.length > 0 ? 'Editar séries' : 'Preencher séries'}
+                  </Button>
+                ) : null}
+
+                {exercise.status === 'PENDING' ? (
+                  <Button variant="outline" disabled={disabled} onClick={() => onStatus('SKIPPED')}>
+                    <SkipForward /> Pular exercício
+                  </Button>
+                ) : null}
+              </>
             ) : (
-              <p className="text-sm text-muted-foreground">Nenhuma série preenchida.</p>
+              <div className="rounded-2xl border border-border bg-secondary/10 p-3">
+                <ExerciseSetsForm
+                  exercise={exercise}
+                  pending={saveSets.isPending}
+                  onSubmit={(sets) => saveSets.mutate(sets)}
+                  onCancel={() => setEditingSets(false)}
+                  onSetCompleted={(setId, body) => saveSet.mutateAsync({ setId, body })}
+                />
+              </div>
             )}
-
-            {exercise.status !== 'SKIPPED' ? (
-              <Button size="lg" disabled={disabled} onClick={() => setSetsModalOpen(true)}>
-                <Check /> {exercise.sets.length > 0 ? 'Editar séries' : 'Preencher séries'}
-              </Button>
-            ) : null}
-
-            {exercise.status === 'PENDING' ? (
-              <Button variant="outline" disabled={disabled} onClick={() => onStatus('SKIPPED')}>
-                <SkipForward /> Pular exercício
-              </Button>
-            ) : null}
           </div>
         ) : null}
       </Card>
-
-      <ExerciseSetsModal
-        open={setsModalOpen}
-        exercise={exercise}
-        pending={saveSets.isPending}
-        onClose={() => setSetsModalOpen(false)}
-        onSubmit={(sets) => saveSets.mutate(sets)}
-      />
     </>
   );
 }
+
+let clockSnapshot = Date.now();
 
 function useClock(): number {
   return useSyncExternalStore(subscribeClock, readClock, () => 0);
 }
 
 function subscribeClock(onChange: () => void): () => void {
-  const timer = window.setInterval(onChange, 1000);
+  const timer = window.setInterval(() => {
+    clockSnapshot = Date.now();
+    onChange();
+  }, 1000);
   return () => window.clearInterval(timer);
 }
 
 function readClock(): number {
-  return Date.now();
+  return clockSnapshot;
 }
 
 export function formatElapsed(startedAt: string, now: number): string {
@@ -397,7 +460,7 @@ export function formatSeconds(seconds: number): string {
 }
 
 function exerciseStatusLabel(status: SessionExercise['status']): string {
-  return { PENDING: 'Pendente', DONE: 'Concluido', SKIPPED: 'Pulado', REPLACED: 'Substituido' }[
+  return { PENDING: 'Pendente', DONE: 'Concluído', SKIPPED: 'Pulado', REPLACED: 'Substituído' }[
     status
   ];
 }
@@ -416,7 +479,7 @@ function OfflineQueueNotice({
       const result = await syncOutbox(ownerId, { force: true });
       if (result.blocked) {
         if (result.error instanceof Error) throw result.error;
-        throw new Error('A sincronizacao continua bloqueada.');
+        throw new Error('A sincronização continua bloqueada.');
       }
       return result;
     },
@@ -427,21 +490,21 @@ function OfflineQueueNotice({
       ]);
       toast.success(
         result.pending > 0
-          ? 'Sincronizacao agendada para uma nova tentativa.'
-          : 'Alteracoes sincronizadas.',
+          ? 'Sincronização agendada para uma nova tentativa.'
+          : 'Alterações sincronizadas.',
       );
     },
     onError: (error) =>
-      toast.error(describeApiError(error, 'A alteracao ainda precisa de atencao.')),
+      toast.error(describeApiError(error, 'A alteração ainda precisa de atenção.')),
   });
   const discard = useMutation({
     mutationFn: () => discardOfflineChanges(ownerId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: sessionKeys.all });
-      toast.success('Alteracoes locais descartadas. Os dados do servidor foram recarregados.');
+      toast.success('Alterações locais descartadas. Os dados do servidor foram recarregados.');
     },
     onError: (error) =>
-      toast.error(describeApiError(error, 'Nao foi possivel descartar as alteracoes locais.')),
+      toast.error(describeApiError(error, 'Não foi possível descartar as alterações locais.')),
   });
 
   if (status.blocked > 0) {
@@ -451,11 +514,11 @@ function OfflineQueueNotice({
           <CloudOff className="size-4" />
           {status.blocked}{' '}
           {status.blocked === 1
-            ? 'alteracao local precisa de atencao'
-            : 'alteracoes locais precisam de atencao'}
+            ? 'alteração local precisa de atenção'
+            : 'alterações locais precisam de atenção'}
         </p>
         <p className="mt-1">
-          O servidor recusou a sincronizacao. Nada foi descartado automaticamente.
+          O servidor recusou a sincronização. Nada foi descartado automaticamente.
         </p>
         <div className="mt-2 flex gap-2">
           <Button
@@ -473,7 +536,7 @@ function OfflineQueueNotice({
             onClick={() => {
               if (
                 window.confirm(
-                  'Descartar todas as alteracoes offline que ainda nao chegaram ao servidor?',
+                  'Descartar todas as alterações offline que ainda não chegaram ao servidor?',
                 )
               ) {
                 discard.mutate();
@@ -492,8 +555,8 @@ function OfflineQueueNotice({
   return (
     <p className="mt-3 flex items-center gap-2 rounded-lg bg-warning/10 p-2 text-xs text-warning">
       <CloudOff className="size-4" />
-      {status.pending} {status.pending === 1 ? 'alteracao aguarda' : 'alteracoes aguardam'}{' '}
-      sincronizacao
+      {status.pending} {status.pending === 1 ? 'alteração aguarda' : 'alterações aguardam'}{' '}
+      sincronização
     </p>
   );
 }

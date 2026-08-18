@@ -42,7 +42,7 @@ export function PhotosPanel() {
       if (!file || !ALLOWED_MIMES.has(file.type as AllowedMime)) {
         throw new Error('Escolha uma imagem JPEG, PNG ou WebP.');
       }
-      if (file.size > MAX_PHOTO_BYTES) throw new Error('A foto deve ter no maximo 10 MB.');
+      if (file.size > MAX_PHOTO_BYTES) throw new Error('A foto deve ter no máximo 10 MB.');
 
       const { data, error } = await apiClient.POST('/api/v1/progress/photos', {
         body: { capturedOn, mimeType: file.type as AllowedMime, sizeBytes: file.size },
@@ -67,7 +67,7 @@ export function PhotosPanel() {
     },
     onError: async (error) => {
       await queryClient.invalidateQueries({ queryKey: progressKeys.photos });
-      toast.error(error instanceof Error ? error.message : 'Nao foi possivel enviar a foto.');
+      toast.error(error instanceof Error ? error.message : 'Não foi possível enviar a foto.');
     },
   });
 
@@ -85,7 +85,7 @@ export function PhotosPanel() {
       anchor.rel = 'noopener noreferrer';
       anchor.click();
     },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel abrir a foto.')),
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível abrir a foto.')),
   });
 
   const confirm = useMutation({
@@ -100,7 +100,7 @@ export function PhotosPanel() {
       toast.success('Foto validada e liberada.');
     },
     onError: (error) =>
-      toast.error(describeApiError(error, 'O arquivo ainda nao esta pronto para validacao.')),
+      toast.error(describeApiError(error, 'O arquivo ainda não está pronto para validação.')),
   });
 
   const remove = useMutation({
@@ -112,9 +112,9 @@ export function PhotosPanel() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: progressKeys.photos });
-      toast.success('Foto excluida do armazenamento privado.');
+      toast.success('Foto excluída do armazenamento privado.');
     },
-    onError: (error) => toast.error(describeApiError(error, 'Nao foi possivel excluir a foto.')),
+    onError: (error) => toast.error(describeApiError(error, 'Não foi possível excluir a foto.')),
   });
 
   const update = useMutation({
@@ -148,7 +148,7 @@ export function PhotosPanel() {
     if (selected && selected.size > MAX_PHOTO_BYTES) {
       event.target.value = '';
       setFile(null);
-      toast.error('A foto deve ter no maximo 10 MB.');
+      toast.error('A foto deve ter no máximo 10 MB.');
       return;
     }
     setFile(selected);
@@ -161,7 +161,7 @@ export function PhotosPanel() {
       <Card>
         <CardTitle id="photos-title">Fotos de progresso</CardTitle>
         <CardDescription className="mt-1">
-          Arquivos privados, validados pela API antes de ficarem disponiveis.
+          Arquivos privados, validados pela API antes de ficarem disponíveis.
         </CardDescription>
         <div className="mt-4 flex flex-col gap-3">
           <DateInput
@@ -184,7 +184,7 @@ export function PhotosPanel() {
         {photos.isPending ? <p className="mt-4 text-sm">Carregando fotos...</p> : null}
         {photos.isError ? (
           <p role="alert" className="mt-4 text-sm text-destructive">
-            {describeApiError(photos.error, 'Nao foi possivel carregar as fotos.')}
+            {describeApiError(photos.error, 'Não foi possível carregar as fotos.')}
           </p>
         ) : null}
         {photos.isSuccess && data.length === 0 ? (
@@ -197,7 +197,7 @@ export function PhotosPanel() {
                 <div>
                   <p className="font-medium">{formatCivilDate(photo.capturedOn)}</p>
                   <p className="text-xs text-muted-foreground">
-                    {photo.status === 'READY' ? 'Disponivel' : 'Envio pendente'} ·{' '}
+                    {photo.status === 'READY' ? 'Disponível' : 'Envio pendente'} ·{' '}
                     {formatBytes(photo.sizeBytes)}
                   </p>
                 </div>

@@ -170,7 +170,7 @@ export function SetPasswordForm({
       router.replace(AFTER_LOGIN_ROUTE);
       router.refresh();
     } catch {
-      setFormError('Nao foi possivel conectar. Verifique sua internet.');
+      setFormError('Não foi possível conectar. Verifique sua internet.');
     } finally {
       setSubmitting(false);
     }
@@ -179,10 +179,10 @@ export function SetPasswordForm({
   if (accountCreated) {
     return (
       <div className="flex flex-col gap-4">
-        <FormSuccess>Senha criada. Sua conta ja existe no GymFlow.</FormSuccess>
+        <FormSuccess>Senha criada. Sua conta já existe no GymFlow.</FormSuccess>
 
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Falta o administrador liberar seu acesso. Quando ele fizer isso, voce entra com o e-mail
+          Falta o administrador liberar seu acesso. Quando ele fizer isso, você entra com o e-mail
           do convite e a senha que acabou de criar.
         </p>
 
@@ -216,8 +216,8 @@ export function SetPasswordForm({
       <div className="flex flex-col gap-4">
         <FormError>
           {mode === 'convite'
-            ? 'Este convite expirou ou ja foi utilizado. Peca ao administrador para reenviar.'
-            : 'Este link de recuperacao expirou ou ja foi utilizado. Solicite um novo.'}
+            ? 'Este convite expirou ou já foi utilizado. Peça ao administrador para reenviar.'
+            : 'Este link de recuperação expirou ou já foi utilizado. Solicite um novo.'}
         </FormError>
 
         <Button

@@ -90,7 +90,7 @@ export function EmptyState(props: Omit<StateMessageProps, 'icon' | 'tone'>) {
  * algo que nunca vai funcionar.
  */
 export function ErrorState({
-  title = 'Nao foi possivel carregar',
+  title = 'Não foi possível carregar',
   description,
   onRetry,
   retryLabel = 'Tentar novamente',
@@ -126,7 +126,7 @@ export function OfflineState({ description }: { readonly description?: string })
   return (
     <StateMessage
       icon={WifiOff}
-      title="Sem conexao"
+      title="Sem conexão"
       description={description ?? 'Verifique sua internet e tente novamente.'}
     />
   );
@@ -152,10 +152,10 @@ export function NotBuiltYetState({
   return (
     <StateMessage
       icon={Construction}
-      title={`${feature} ainda nao foi implementado`}
+      title={`${feature} ainda não foi implementado`}
       description={
         description ??
-        `Esta tela existe para validar a navegacao. A funcionalidade entra na fase ${phase} e nenhum dado e exibido aqui ate lá.`
+        `Esta tela existe para validar a navegação. A funcionalidade entra na fase ${phase} e nenhum dado é exibido aqui até lá.`
       }
     />
   );

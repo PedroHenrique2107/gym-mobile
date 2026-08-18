@@ -68,7 +68,7 @@ function PwaLifecycle({ children }: { readonly children: ReactNode }) {
       toast.success('GymFlow instalado neste aparelho.');
     };
     const handleOffline = () => {
-      toast.info('Sem conexao. Alteracoes do treino serao guardadas neste aparelho.');
+      toast.info('Sem conexão. Alterações do treino serão guardadas neste aparelho.');
     };
     const handleOnline = () => {
       window.dispatchEvent(new CustomEvent('gymflow:online'));
@@ -108,14 +108,14 @@ function PwaLifecycle({ children }: { readonly children: ReactNode }) {
     if (!installPrompt) return;
     await installPrompt.prompt();
     const choice = await installPrompt.userChoice;
-    if (choice.outcome === 'dismissed') toast.info('Instalacao cancelada.');
+    if (choice.outcome === 'dismissed') toast.info('Instalação cancelada.');
     setInstallPrompt(null);
   }, [installPrompt]);
 
   const checkForUpdate = useCallback(async () => {
     if (!serwist) return;
     await serwist.update();
-    toast.success('Verificacao de atualizacao concluida.');
+    toast.success('Verificação de atualização concluída.');
   }, [serwist]);
 
   const applyUpdate = useCallback(() => {
@@ -159,7 +159,7 @@ function PwaLifecycle({ children }: { readonly children: ReactNode }) {
           role="status"
           className="fixed inset-x-0 top-0 z-50 bg-warning px-3 py-1 text-center text-xs font-semibold text-warning-foreground"
         >
-          Offline · o treino sera sincronizado quando a conexao voltar
+          Offline · o treino será sincronizado quando a conexão voltar
         </div>
       ) : null}
       {children}

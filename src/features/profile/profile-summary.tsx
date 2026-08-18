@@ -32,7 +32,7 @@ export function ProfileSummary() {
     return (
       <Card>
         <ErrorState
-          title="Nao foi possivel carregar seu perfil"
+          title="Não foi possível carregar seu perfil"
           description={describe(error)}
           onRetry={() => {
             void refetch();
@@ -48,30 +48,30 @@ export function ProfileSummary() {
     <div className="flex flex-col gap-4">
       <Card>
         <div className="flex items-start justify-between gap-3">
-          <CardTitle>{primeiroNome ? `Ola, ${primeiroNome}` : 'Sua conta'}</CardTitle>
+          <CardTitle>{primeiroNome ? `Olá, ${primeiroNome}` : 'Sua conta'}</CardTitle>
           {profile.role === 'ADMIN' ? <Badge variant="primary">Administrador</Badge> : null}
         </div>
 
         <CardDescription className="mt-1">
           {profile.onboardingCompletedAt
             ? 'Perfil configurado.'
-            : 'Complete seu perfil para receber sugestoes mais precisas.'}
+            : 'Complete seu perfil para receber sugestões mais precisas.'}
         </CardDescription>
 
         <dl className="mt-4 flex flex-col gap-2 text-sm">
           <Row label="Objetivo" value={traduzirObjetivo(profile.goal)} />
-          <Row label="Experiencia" value={traduzirExperiencia(profile.experience)} />
+          <Row label="Experiência" value={traduzirExperiencia(profile.experience)} />
           <Row label="Treinos por semana" value={`${profile.weeklyFrequency}x`} />
-          <Row label="Duracao da sessao" value={`${profile.sessionMinutes} min`} />
+          <Row label="Duração da sessão" value={`${profile.sessionMinutes} min`} />
         </dl>
       </Card>
 
       <Card className="border-primary/30 bg-primary/5">
-        <CardTitle className="text-primary">Seu treino em um so lugar</CardTitle>
+        <CardTitle className="text-primary">Seu treino em um só lugar</CardTitle>
         <CardDescription className="mt-1 leading-relaxed">
           Use Treinar para executar suas fichas, Agenda para organizar a semana e Progresso para
-          acompanhar sessoes, medidas e fotos. Seus treinos preparados continuam disponiveis mesmo
-          quando a conexao cair.
+          acompanhar sessões e medidas. Seus treinos preparados continuam disponíveis mesmo quando a
+          conexão cair.
         </CardDescription>
       </Card>
     </div>
@@ -97,11 +97,11 @@ function Row({ label, value }: { readonly label: string; readonly value: string 
 function traduzirObjetivo(goal: string): string {
   const mapa: Record<string, string> = {
     HYPERTROPHY: 'Hipertrofia',
-    STRENGTH: 'Forca',
+    STRENGTH: 'Força',
     WEIGHT_LOSS: 'Emagrecimento',
-    RECOMPOSITION: 'Recomposicao',
+    RECOMPOSITION: 'Recomposição',
     CONDITIONING: 'Condicionamento',
-    HEALTH: 'Saude',
+    HEALTH: 'Saúde',
   };
 
   return mapa[goal] ?? goal;
@@ -110,8 +110,8 @@ function traduzirObjetivo(goal: string): string {
 function traduzirExperiencia(level: string): string {
   const mapa: Record<string, string> = {
     BEGINNER: 'Iniciante',
-    INTERMEDIATE: 'Intermediario',
-    ADVANCED: 'Avancado',
+    INTERMEDIATE: 'Intermediário',
+    ADVANCED: 'Avançado',
   };
 
   return mapa[level] ?? level;
@@ -121,7 +121,7 @@ function traduzirExperiencia(level: string): string {
 function describe(error: unknown): string {
   if (error instanceof ApiError) {
     return error.status === 0
-      ? 'Sem conexao com o servidor. Verifique sua internet.'
+      ? 'Sem conexão com o servidor. Verifique sua internet.'
       : error.message;
   }
 
