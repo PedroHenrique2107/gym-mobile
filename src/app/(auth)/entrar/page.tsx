@@ -26,9 +26,11 @@ export default function EntrarPage() {
         </Link>
       }
     >
-      <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-        <LoginForm />
-      </Suspense>
+      <div className="min-h-72">
+        <Suspense fallback={<Skeleton className="h-72 w-full" />}>
+          <LoginForm />
+        </Suspense>
+      </div>
     </AuthLayout>
   );
 }

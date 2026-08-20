@@ -16,6 +16,9 @@ export const PUBLIC_ROUTES = [
   '/redefinir-senha',
   '/status',
   '/offline',
+  '/jam/entrar',
+  '/robots.txt',
+  '/sitemap.xml',
 ] as const;
 
 /**
@@ -26,7 +29,7 @@ export const PUBLIC_ROUTES = [
  * válida e precisa concluir a troca de senha. Mandá-lo para `/inicio` por já
  * estar autenticado interromperia o fluxo no meio.
  */
-export const AUTH_FLOW_ROUTES = ['/convite', '/redefinir-senha'] as const;
+export const AUTH_FLOW_ROUTES = ['/convite', '/jam/entrar', '/redefinir-senha'] as const;
 
 /** Para onde vai quem entra com sucesso. */
 export const AFTER_LOGIN_ROUTE = '/inicio';
@@ -65,8 +68,12 @@ export function safeRedirectTarget(value: string | null | undefined): string {
     return AFTER_LOGIN_ROUTE;
   }
 
-  // Rota pública como destino faria o usuário voltar ao login logo após entrar.
-  if (isPublicRoute(decoded.split('?')[0] ?? decoded)) {
+  const pathname = decoded.split('?')[0] ?? decoded;
+
+  // Rotas públicas comuns como destino fariam o usuário voltar ao login. A
+  // entrada da Jam é exceção deliberada: o segredo permanece em sessionStorage
+  // durante o login e a confirmação acontece nessa própria rota.
+  if (isPublicRoute(pathname) && pathname !== '/jam/entrar') {
     return AFTER_LOGIN_ROUTE;
   }
 

@@ -323,13 +323,13 @@ export interface paths {
         };
         /**
          * Lista a biblioteca de exercicios
-         * @description Traz o catalogo global e os exercicios do proprio usuario na mesma lista, em ordem alfabetica. Exercicios arquivados ficam de fora por padrao. `total` conta o filtro inteiro, nao a pagina.
+         * @description Traz o catalogo global em ordem alfabetica. Exercicios arquivados ficam de fora por padrao e so aparecem para ADMIN quando `includeArchived=true`. `total` conta o filtro inteiro, nao a pagina.
          */
         get: operations["Exercises_list"];
         put?: never;
         /**
-         * Cria um exercicio proprio
-         * @description O exercicio pertence a quem o criou e nao entra no catalogo global. O nome precisa ser unico entre os seus: repetir responde 409.
+         * Cria um exercicio global
+         * @description Somente ADMIN. O exercicio entra no catalogo compartilhado e o nome precisa ser unico sem diferenciar maiusculas e minusculas, inclusive entre arquivados.
          */
         post: operations["Exercises_create"];
         delete?: never;
@@ -347,23 +347,83 @@ export interface paths {
         };
         /**
          * Le um exercicio
-         * @description Inclui instrucoes, cuidados e alternativas. O ETag traz a versao do recurso, que deve ser reenviada em If-Match ao alterar. Responde 404 para exercicio de outro usuario, sem distinguir de inexistente.
+         * @description Inclui instrucoes, cuidados e alternativas do catalogo global. O ETag traz a versao do recurso, que deve ser reenviada em If-Match ao alterar.
          */
         get: operations["Exercises_findOne"];
         put?: never;
         post?: never;
         /**
-         * Exclui ou arquiva um exercicio proprio
-         * @description Exclui quando nenhuma ficha o referencia. Se estiver em uso, arquiva — excluir corromperia a ficha e o historico de quem o executou — e responde `archived: true`. Repetir a chamada e seguro. Exercicios do catalogo global respondem 403.
+         * Exclui definitivamente um exercicio global
+         * @description Somente ADMIN. Remove o exercicio do catalogo e de todas as fichas. O historico e as series permanecem por snapshot. A operacao e bloqueada enquanto uma sessao ativa usar o exercicio.
          */
         delete: operations["Exercises_remove"];
         options?: never;
         head?: never;
         /**
-         * Altera um exercicio proprio
-         * @description Alteracao parcial: campo ausente mantem o valor atual e `null` limpa o campo. `alternativeIds`, quando enviado, substitui a lista inteira. If-Match e obrigatorio. Exercicios do catalogo global respondem 403.
+         * Altera um exercicio global
+         * @description Somente ADMIN. Alteracao parcial: campo ausente mantem o valor atual e `null` limpa o campo. `alternativeIds`, quando enviado, substitui a lista inteira. If-Match e obrigatorio.
          */
         patch: operations["Exercises_update"];
+        trace?: never;
+    };
+    "/api/v1/exercises/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Arquiva um exercicio global
+         * @description Somente ADMIN. Remove o exercicio das novas selecoes, preservando fichas e historico. Repetir a operacao e seguro.
+         */
+        post: operations["Exercises_archive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exercises/{id}/deletion-impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consulta o impacto da exclusao definitiva
+         * @description Somente ADMIN. Informa fichas, usuarios, sessoes e series afetadas. Sessoes ativas bloqueiam a exclusao.
+         */
+        get: operations["Exercises_deletionImpact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exercises/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restaura um exercicio global
+         * @description Somente ADMIN. Devolve o exercicio arquivado para as novas selecoes. Um nome conflitante, inclusive arquivado, responde 409.
+         */
+        post: operations["Exercises_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/me": {
@@ -983,6 +1043,168 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workout-jams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Inicia uma Jam e gera um codigo temporario de uso unico
+         * @description Somente ADMIN. O codigo puro aparece apenas nesta resposta; o banco guarda exclusivamente seu SHA-256. O anfitriao e sua sessao ativa tornam-se o primeiro participante.
+         */
+        post: operations["WorkoutJams_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workout-jams/{jamId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Snapshot oficial dos dois treinos para entrada ou reconexao */
+        get: operations["WorkoutJams_snapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workout-jams/{jamId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reproduz eventos posteriores a uma sequencia
+         * @description Outbox de reconexao. Eventos nao carregam peso ou repeticoes; apos recebe-los, recarregue o snapshot REST.
+         */
+        get: operations["WorkoutJams_events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workout-jams/{jamId}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sai da Jam sem encerrar ou apagar as sessoes individuais
+         * @description Quando o ADMIN anfitriao sai, a Jam termina imediatamente.
+         */
+        post: operations["WorkoutJams_leave"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workout-jams/{jamId}/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Heartbeat REST alternativo para atualizar presenca */
+        post: operations["WorkoutJams_heartbeat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workout-jams/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Snapshot da Jam atual do usuario */
+        get: operations["WorkoutJams_active"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workout-jams/invitations/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aceita explicitamente o convite e vincula a sessao do convidado */
+        post: operations["WorkoutJams_acceptInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workout-jams/invitations/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recusa e consome definitivamente o convite */
+        post: operations["WorkoutJams_declineInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workout-jams/invitations/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Consulta com seguranca quem enviou o convite antes do aceite */
+        post: operations["WorkoutJams_previewInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workouts": {
         parameters: {
             query?: never;
@@ -1126,6 +1348,15 @@ export interface components {
              * @example 2026-08-01
              */
             version: string;
+        };
+        AcceptWorkoutJamInviteRequest: {
+            /** @description Codigo temporario recebido no fragmento do link. Ele e enviado somente no corpo e nunca aparece em URL ou log do servidor. */
+            inviteCode: string;
+            /**
+             * Format: uuid
+             * @description Sessao ativa do usuario convidado.
+             */
+            sessionId: string;
         };
         AccountExportResponse: {
             /** Format: email */
@@ -1273,6 +1504,18 @@ export interface components {
             primaryMuscle: components["schemas"]["MuscleGroup"];
             secondaryMuscles?: components["schemas"]["MuscleGroup"][];
         };
+        CreateWorkoutJamRequest: {
+            /**
+             * Format: uuid
+             * @description Sessao ativa do ADMIN anfitriao.
+             */
+            sessionId: string;
+        };
+        CreateWorkoutJamResponse: {
+            /** @description Segredo exibido uma unica vez. O frontend deve coloca-lo no fragmento #codigo= do link, nunca na query string. */
+            inviteCode: string;
+            jam: components["schemas"]["WorkoutJamResponse"];
+        };
         CreateWorkoutRequest: {
             /** @description Exercicios em ordem de execucao. A posicao vem da ordem do array, nao de um campo: enviar `position` a mao permitiria lacunas e empates. */
             exercises?: components["schemas"]["WorkoutExerciseInput"][];
@@ -1288,9 +1531,9 @@ export interface components {
             entityId?: string | null;
             entityType: string;
         };
-        DeleteExerciseResponse: {
-            /** @description Verdadeiro quando o exercicio foi arquivado por estar em uso em alguma ficha, em vez de excluido. */
-            archived: boolean;
+        DeleteExerciseRequest: {
+            /** @description Nome atual do exercicio. A comparacao ignora espacos externos e diferenca entre maiusculas e minusculas. */
+            confirmationName: string;
         };
         /** @enum {string} */
         Difficulty: "EASY" | "MEDIUM" | "HARD";
@@ -1300,6 +1543,23 @@ export interface components {
         };
         /** @enum {string} */
         Equipment: "BARBELL" | "DUMBBELL" | "MACHINE" | "CABLE" | "BODYWEIGHT" | "KETTLEBELL" | "BAND" | "BENCH" | "OTHER";
+        ExerciseDeletionImpactResponse: {
+            /** @description Sessoes ativas que bloqueiam a exclusao definitiva. */
+            activeSessionCount: number;
+            /** @description Quantidade de usuarios com alguma ficha afetada. */
+            affectedUserCount: number;
+            /** @description Verdadeiro quando a exclusao definitiva pode ser executada agora. */
+            canDelete: boolean;
+            /** Format: uuid */
+            exerciseId: string;
+            exerciseName: string;
+            /** @description Sessoes encerradas que preservarao o snapshot do exercicio. */
+            historicalSessionCount: number;
+            /** @description Series historicas que permanecerao no banco como snapshot. */
+            historicalSetCount: number;
+            /** @description Quantidade de fichas das quais o exercicio sera removido. */
+            templateCount: number;
+        };
         ExerciseDetailResponse: {
             /** @description Exercicios equivalentes, para substituir quando faltar equipamento. */
             alternatives: components["schemas"]["ExerciseSummaryResponse"][];
@@ -1313,7 +1573,7 @@ export interface components {
             instructions?: string | null;
             /** @description Se o exercicio foi arquivado e nao deve aparecer em novas fichas. */
             isArchived: boolean;
-            /** @description Verdadeiro quando o exercicio pertence ao catalogo global. Membros nao podem editar nem excluir esses. */
+            /** @description Sempre verdadeiro nesta versao: todo exercicio pertence ao catalogo global. */
             isGlobal: boolean;
             /** @description Midia autorizada. Fica vazia enquanto origem e licenca de imagens forem decisao pendente. */
             media: components["schemas"]["ExerciseMediaResponse"][];
@@ -1415,7 +1675,7 @@ export interface components {
             id: string;
             /** @description Se o exercicio foi arquivado e nao deve aparecer em novas fichas. */
             isArchived: boolean;
-            /** @description Verdadeiro quando o exercicio pertence ao catalogo global. Membros nao podem editar nem excluir esses. */
+            /** @description Sempre verdadeiro nesta versao: todo exercicio pertence ao catalogo global. */
             isGlobal: boolean;
             name: string;
             primaryMuscle: components["schemas"]["MuscleGroup"];
@@ -2315,6 +2575,111 @@ export interface components {
             restSeconds: number;
             targetSets: number;
         };
+        /** @enum {string} */
+        WorkoutJamEndReason: "INVITE_DECLINED" | "INVITE_EXPIRED" | "HOST_LEFT" | "PARTICIPANT_LEFT" | "HOST_SESSION_ENDED";
+        WorkoutJamEventListResponse: {
+            data: components["schemas"]["WorkoutJamEventResponse"][];
+            lastSequence: string;
+        };
+        WorkoutJamEventResponse: {
+            /** Format: uuid */
+            actorId?: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jamId: string;
+            /** Format: date-time */
+            occurredAt: string;
+            payload: {
+                [key: string]: unknown;
+            };
+            sequence: string;
+            /** Format: uuid */
+            sessionId?: string | null;
+            /** Format: uuid */
+            subjectId?: string | null;
+            type: components["schemas"]["WorkoutJamEventType"];
+        };
+        /** @enum {string} */
+        WorkoutJamEventType: "JAM_CREATED" | "INVITE_ACCEPTED" | "INVITE_DECLINED" | "JAM_ACTIVATED" | "PARTICIPANT_LEFT" | "JAM_ENDED" | "SET_UPSERTED" | "SET_DELETED" | "EXERCISE_SETS_REPLACED" | "SESSION_COMPLETED" | "SESSION_ABANDONED";
+        WorkoutJamInviteCodeRequest: {
+            /** @description Codigo temporario recebido no fragmento do link. Ele e enviado somente no corpo e nunca aparece em URL ou log do servidor. */
+            inviteCode: string;
+        };
+        WorkoutJamInvitePreviewResponse: {
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            hostId: string;
+            hostName?: string | null;
+            /** Format: uuid */
+            jamId: string;
+            workoutName: string;
+        };
+        WorkoutJamParticipantResponse: {
+            /** Format: uuid */
+            id: string;
+            isHost: boolean;
+            /** @description Presenca aproximada, derivada do ultimo heartbeat dos 45 segundos anteriores. */
+            isOnline: boolean;
+            /** Format: date-time */
+            lastSeenAt?: string | null;
+            name?: string | null;
+            /** Format: uuid */
+            profileId: string;
+            role: components["schemas"]["ProfileRole"];
+            session?: components["schemas"]["WorkoutJamSessionResponse"] | null;
+            status: components["schemas"]["WorkoutJamParticipantStatus"];
+        };
+        /** @enum {string} */
+        WorkoutJamParticipantStatus: "ACCEPTED" | "DECLINED" | "LEFT";
+        WorkoutJamPresenceResponse: {
+            /** Format: date-time */
+            lastSeenAt: string;
+        };
+        WorkoutJamResponse: {
+            /** Format: date-time */
+            endedAt?: string | null;
+            endReason?: components["schemas"]["WorkoutJamEndReason"] | null;
+            /** Format: uuid */
+            hostId: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            inviteExpiresAt: string;
+            participants: components["schemas"]["WorkoutJamParticipantResponse"][];
+            /** Format: date-time */
+            startedAt?: string | null;
+            status: components["schemas"]["WorkoutJamStatus"];
+            version: number;
+        };
+        WorkoutJamSessionResponse: {
+            /** Format: uuid */
+            id: string;
+            status: components["schemas"]["SessionStatus"];
+            templateName: string;
+            version: number;
+        };
+        WorkoutJamSnapshotResponse: {
+            /** Format: date-time */
+            endedAt?: string | null;
+            endReason?: components["schemas"]["WorkoutJamEndReason"] | null;
+            /** Format: uuid */
+            hostId: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            inviteExpiresAt: string;
+            participants: components["schemas"]["WorkoutJamParticipantResponse"][];
+            /** @description Estado oficial dos dois treinos. Usado na entrada e na reconexao; eventos apenas sinalizam que este snapshot mudou. */
+            sessions: components["schemas"]["SessionDetailResponse"][];
+            /** Format: date-time */
+            startedAt?: string | null;
+            status: components["schemas"]["WorkoutJamStatus"];
+            version: number;
+        };
+        /** @enum {string} */
+        WorkoutJamStatus: "PENDING" | "ACTIVE" | "ENDED" | "CANCELLED";
         WorkoutListResponse: {
             data: components["schemas"]["WorkoutSummaryResponse"][];
             total: number;
@@ -3627,8 +3992,6 @@ export interface operations {
                 limit?: number;
                 muscle?: components["schemas"]["MuscleGroup"];
                 offset?: number;
-                /** @description Restringe a origem: `global` traz apenas o catalogo, `custom` apenas os seus. Omitido traz os dois. */
-                origin?: "global" | "custom";
                 /** @description Busca por parte do nome. */
                 search?: string;
             };
@@ -3876,15 +4239,17 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteExerciseRequest"];
+            };
+        };
         responses: {
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["DeleteExerciseResponse"];
-                };
+                content?: never;
             };
             /** @description Autenticacao ausente, invalida ou expirada. */
             401: {
@@ -3906,6 +4271,24 @@ export interface operations {
             };
             /** @description Recurso inexistente dentro do escopo permitido. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4017,6 +4400,240 @@ export interface operations {
             };
             /** @description Alteracao enviada sem informar a versao conhecida do recurso em If-Match. */
             428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Exercises_archive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExerciseDetailResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Exercises_deletionImpact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExerciseDeletionImpactResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    Exercises_restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExerciseDetailResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7410,7 +8027,10 @@ export interface operations {
     Sessions_replaceExerciseSets: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Versao conhecida do recurso, como devolvida no ETag do GET. Aceita `"3"`, `3` ou `W/"3"`. Curinga `*` e recusado, porque significaria aceitar sobrescrever qualquer versao. Opcional para clientes legados; durante uma Jam, envie a versao capturada ao abrir a edicao. */
+                "If-Match"?: string;
+            };
             path: {
                 sessionExerciseId: string;
                 sessionId: string;
@@ -7508,7 +8128,10 @@ export interface operations {
     Sessions_upsertSet: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Versao conhecida do recurso, como devolvida no ETag do GET. Aceita `"3"`, `3` ou `W/"3"`. Curinga `*` e recusado, porque significaria aceitar sobrescrever qualquer versao. Opcional para clientes legados; durante uma Jam, envie a versao capturada ao abrir a edicao. */
+                "If-Match"?: string;
+            };
             path: {
                 sessionId: string;
                 setId: string;
@@ -7606,7 +8229,10 @@ export interface operations {
     Sessions_removeSet: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Versao conhecida do recurso, como devolvida no ETag do GET. Aceita `"3"`, `3` ou `W/"3"`. Curinga `*` e recusado, porque significaria aceitar sobrescrever qualquer versao. Opcional para clientes legados; durante uma Jam, envie a versao capturada ao abrir a edicao. */
+                "If-Match"?: string;
+            };
             path: {
                 sessionId: string;
                 setId: string;
@@ -7652,6 +8278,15 @@ export interface operations {
             };
             /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7725,6 +8360,767 @@ export interface operations {
             };
             /** @description Recurso inexistente dentro do escopo permitido. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    WorkoutJams_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWorkoutJamRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateWorkoutJamResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    WorkoutJams_snapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jamId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkoutJamSnapshotResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    WorkoutJams_events: {
+        parameters: {
+            query?: {
+                /** @description Ultima sequencia recebida. A resposta traz somente eventos posteriores. */
+                afterSequence?: string;
+            };
+            header?: never;
+            path: {
+                jamId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkoutJamEventListResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    WorkoutJams_leave: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jamId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    WorkoutJams_heartbeat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jamId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkoutJamPresenceResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    WorkoutJams_active: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkoutJamSnapshotResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    WorkoutJams_acceptInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptWorkoutJamInviteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkoutJamSnapshotResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    WorkoutJams_declineInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkoutJamInviteCodeRequest"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Limite de requisicoes excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Falha interna sanitizada. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Dependencia essencial indisponivel. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    WorkoutJams_previewInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkoutJamInviteCodeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkoutJamInvitePreviewResponse"];
+                };
+            };
+            /** @description Autenticacao ausente, invalida ou expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Autenticado, mas sem permissao para esta acao. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Recurso inexistente dentro do escopo permitido. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflito de estado, versao divergente ou chave de idempotencia incompativel. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description JSON valido, porem com dados que as regras rejeitam. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

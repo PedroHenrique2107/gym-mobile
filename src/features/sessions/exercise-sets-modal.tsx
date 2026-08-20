@@ -47,6 +47,8 @@ export function ExerciseSetsForm({
   onCancel,
   onSetCompleted,
   submitLabel = 'Concluir exercício',
+  showLoadSuggestion = true,
+  disabled = false,
 }: {
   readonly exercise: SessionExercise;
   readonly pending: boolean;
@@ -61,10 +63,20 @@ export function ExerciseSetsForm({
    */
   readonly onSetCompleted?: (setId: string, body: UpsertSetRequest) => Promise<unknown>;
   readonly submitLabel?: string;
+  /**
+   * Na Jam, o histórico pertence ao dono do treino, não necessariamente a quem
+   * está digitando. Esconder a sugestão ao editar para outra pessoa evita usar
+   * por engano a carga do ator como se fosse do participante.
+   */
+  readonly showLoadSuggestion?: boolean;
+  /** Bloqueia edição sem tratar a tela como uma gravação em andamento. */
+  readonly disabled?: boolean;
 }) {
   const [drafts, setDrafts] = useState<SetDraft[]>(() => createDrafts(exercise));
   const [loadingSuggestion, setLoadingSuggestion] = useState(false);
   const [savingSetId, setSavingSetId] = useState<string | null>(null);
+  const savingSetRef = useRef(false);
+  const controlsDisabled = pending || disabled;
 
   async function applyLastPerformance(): Promise<void> {
     if (!exercise.exerciseId) return;
@@ -99,6 +111,7 @@ export function ExerciseSetsForm({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
+    if (controlsDisabled || savingSetRef.current) return;
     if (drafts.some((draft) => !draft.weightKg)) {
       toast.error('Preencha a carga de todas as séries.');
       return;
@@ -117,6 +130,7 @@ export function ExerciseSetsForm({
   }
 
   async function toggleSetCompleted(draft: SetDraft, index: number): Promise<void> {
+    if (controlsDisabled || savingSetRef.current) return;
     if (draft.completed) {
       // Reabrir nao desfaz o que ja foi salvo — so libera os campos para uma
       // nova correcao, que so vale de fato num novo toque em "Concluir".
@@ -133,6 +147,7 @@ export function ExerciseSetsForm({
 
     if (!onSetCompleted) return;
 
+    savingSetRef.current = true;
     setSavingSetId(draft.id);
     try {
       await onSetCompleted(draft.id, {
@@ -150,21 +165,24 @@ export function ExerciseSetsForm({
     } catch {
       // Quem forneceu `onSetCompleted` ja comunica o erro (toast proprio).
     } finally {
+      savingSetRef.current = false;
       setSavingSetId(null);
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <Button
-        type="button"
-        className="w-full"
-        variant="outline"
-        disabled={loadingSuggestion}
-        onClick={() => void applyLastPerformance()}
-      >
-        <History /> {loadingSuggestion ? 'Buscando...' : 'Usar última carga em todas'}
-      </Button>
+      {showLoadSuggestion ? (
+        <Button
+          type="button"
+          className="w-full"
+          variant="outline"
+          disabled={controlsDisabled || loadingSuggestion}
+          onClick={() => void applyLastPerformance()}
+        >
+          <History /> {loadingSuggestion ? 'Buscando...' : 'Usar última carga em todas'}
+        </Button>
+      ) : null}
 
       <div className="flex flex-col gap-3">
         {drafts.map((draft, index) => (
@@ -190,7 +208,7 @@ export function ExerciseSetsForm({
                     aria-label={
                       draft.completed ? `Reabrir série ${index + 1}` : `Concluir série ${index + 1}`
                     }
-                    disabled={savingSetId === draft.id}
+                    disabled={controlsDisabled || savingSetId === draft.id}
                     onClick={() => void toggleSetCompleted(draft, index)}
                     className={cn(
                       'tap flex items-center gap-1 rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-60',
@@ -213,6 +231,7 @@ export function ExerciseSetsForm({
                     size="icon"
                     variant="ghost"
                     aria-label={`Remover série ${index + 1}`}
+                    disabled={controlsDisabled}
                     onClick={() =>
                       setDrafts((current) => current.filter((item) => item.id !== draft.id))
                     }
@@ -230,7 +249,7 @@ export function ExerciseSetsForm({
                   className="mt-1"
                   aria-label={`Carga da série ${index + 1}`}
                   value={draft.weightKg}
-                  disabled={draft.completed}
+                  disabled={controlsDisabled || draft.completed}
                   onValueChange={(value) =>
                     setDrafts((current) =>
                       current.map((item) =>
@@ -249,7 +268,7 @@ export function ExerciseSetsForm({
                   min={1}
                   max={500}
                   value={draft.reps}
-                  disabled={draft.completed}
+                  disabled={controlsDisabled || draft.completed}
                   onValueChange={(value) =>
                     setDrafts((current) =>
                       current.map((item) =>
@@ -266,7 +285,7 @@ export function ExerciseSetsForm({
               <input
                 type="checkbox"
                 checked={draft.isWarmup}
-                disabled={draft.completed}
+                disabled={controlsDisabled || draft.completed}
                 onChange={(event) =>
                   setDrafts((current) =>
                     current.map((item) =>
@@ -285,6 +304,7 @@ export function ExerciseSetsForm({
         type="button"
         className="w-full"
         variant="outline"
+        disabled={controlsDisabled}
         onClick={() =>
           setDrafts((current) => [...current, createDraft(current.length + 1, exercise.repMin)])
         }
@@ -301,7 +321,7 @@ export function ExerciseSetsForm({
         <Button
           type="submit"
           size="lg"
-          disabled={pending || drafts.length === 0}
+          disabled={controlsDisabled || drafts.length === 0}
           className={onCancel ? undefined : 'min-[360px]:col-span-2'}
         >
           {pending ? 'Salvando...' : submitLabel}
