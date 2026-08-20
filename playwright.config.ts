@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 3000;
+const PORT = Number(process.env.PLAYWRIGHT_PORT ?? 3000);
 const BASE_URL = `http://localhost:${PORT}`;
 
 /**
@@ -61,5 +61,14 @@ export default defineConfig({
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
+    // A suíte pública não depende de uma conta real. Fixar Auth como não
+    // configurado impede que o `.env` local esconda o mesmo cenário do CI.
+    env: {
+      PORT: String(PORT),
+      NEXT_PUBLIC_APP_ENV: 'preview',
+      NEXT_PUBLIC_API_URL: 'http://127.0.0.1:3001',
+      NEXT_PUBLIC_SUPABASE_URL: '',
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: '',
+    },
   },
 });

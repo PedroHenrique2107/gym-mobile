@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { describeApiError } from '@/lib/api/result';
 import { REDIRECT_PARAM } from '@/lib/auth/routes';
+import { isAuthConfigured } from '@/lib/config/env';
 import { getSupabaseBrowserClient } from '@/lib/auth/supabase-browser';
 import { cn } from '@/lib/utils';
 
@@ -58,16 +59,19 @@ export function WorkoutJamInvite() {
       setInviteCode(initialCode);
       setManualCode(initialCode ?? '');
       setOnline(navigator.onLine);
+      if (!isAuthConfigured) setAuth({ loading: false, ownerId: null });
     });
 
     const refreshOnline = (): void => setOnline(navigator.onLine);
     window.addEventListener('online', refreshOnline);
     window.addEventListener('offline', refreshOnline);
 
-    void getSupabaseBrowserClient()
-      .auth.getSession()
-      .then(({ data }) => setAuth({ loading: false, ownerId: data.session?.user.id ?? null }))
-      .catch(() => setAuth({ loading: false, ownerId: null }));
+    if (isAuthConfigured) {
+      void getSupabaseBrowserClient()
+        .auth.getSession()
+        .then(({ data }) => setAuth({ loading: false, ownerId: data.session?.user.id ?? null }))
+        .catch(() => setAuth({ loading: false, ownerId: null }));
+    }
 
     return () => {
       mounted = false;
