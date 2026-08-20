@@ -3,11 +3,13 @@ import type { Metadata, Viewport } from 'next';
 import { Toaster } from '@/components/feedback/toaster';
 import { GymflowPwaProvider } from '@/features/pwa/pwa-provider';
 import { SessionProvider } from '@/lib/auth/session-provider';
+import { PUBLIC_SITE_URL } from '@/lib/config/site';
 import { QueryProvider } from '@/lib/query/query-provider';
 
 import '@/styles/globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: PUBLIC_SITE_URL,
   title: {
     default: 'GymFlow',
     template: '%s · GymFlow',
@@ -23,7 +25,7 @@ export const metadata: Metadata = {
     apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'GymFlow' },
-  // A aplicacao e privada: nada deve ser indexado.
+  // Rotas nascem privadas; somente a landing sobrescreve esta regra.
   robots: { index: false, follow: false },
   formatDetection: { telephone: false, email: false, address: false },
 };

@@ -11,6 +11,9 @@ describe('isPublicRoute', () => {
       '/recuperar-senha',
       '/redefinir-senha',
       '/status',
+      '/jam/entrar',
+      '/robots.txt',
+      '/sitemap.xml',
     ]) {
       expect(isPublicRoute(rota), rota).toBe(true);
     }
@@ -27,6 +30,7 @@ describe('isPublicRoute', () => {
 
   it('cobre subcaminhos de rota publica', () => {
     expect(isPublicRoute('/status/detalhes')).toBe(true);
+    expect(isPublicRoute('/robots.txt/detalhes')).toBe(true);
   });
 
   it('nao confunde prefixo parcial com rota publica', () => {
@@ -41,6 +45,7 @@ describe('isAuthFlowRoute', () => {
     // Quem chega em `/redefinir-senha` tem sessão de recuperação válida e
     // precisa concluir a troca. Mandá-lo para `/inicio` interromperia o fluxo.
     expect(isAuthFlowRoute('/convite')).toBe(true);
+    expect(isAuthFlowRoute('/jam/entrar')).toBe(true);
     expect(isAuthFlowRoute('/redefinir-senha')).toBe(true);
     expect(isAuthFlowRoute('/entrar')).toBe(false);
   });
@@ -50,6 +55,15 @@ describe('safeRedirectTarget', () => {
   it('aceita caminho interno', () => {
     expect(safeRedirectTarget('/progresso')).toBe('/progresso');
     expect(safeRedirectTarget('/treinos/abc?aba=series')).toBe('/treinos/abc?aba=series');
+  });
+
+  it('preserva a rota publica que conclui o fluxo autenticado da Jam', () => {
+    expect(safeRedirectTarget('/jam/entrar')).toBe('/jam/entrar');
+  });
+
+  it('não libera outras rotas públicas apenas por serem fluxos de autenticação', () => {
+    expect(safeRedirectTarget('/convite')).toBe(AFTER_LOGIN_ROUTE);
+    expect(safeRedirectTarget('/redefinir-senha')).toBe(AFTER_LOGIN_ROUTE);
   });
 
   it('aceita caminho codificado', () => {

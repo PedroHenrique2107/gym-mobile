@@ -11,12 +11,14 @@ import AxeBuilder from '@axe-core/playwright';
  */
 
 test.describe('Fundacao', () => {
-  test('a pagina inicial carrega e declara o estado real do projeto', async ({ page }) => {
+  test('a landing carrega e apresenta capacidades reais do aplicativo', async ({ page }) => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { level: 1, name: 'GymFlow' })).toBeVisible();
-    // A landing precisa acompanhar as capacidades que ja foram entregues.
-    await expect(page.getByText('Pronto para treinar')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Tudo que acompanha o seu treino' }),
+    ).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Entrar no aplicativo' }).first()).toBeVisible();
   });
 
   test('o documento esta em pt-BR', async ({ page }) => {
@@ -36,9 +38,20 @@ test.describe('Fundacao', () => {
     expect(viewport).toContain('viewport-fit=cover');
   });
 
-  test('a aplicacao nao e indexavel', async ({ page }) => {
+  test('somente a landing declara indexacao', async ({ page, request }) => {
     await page.goto('/');
-    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /^index, follow/);
+    const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
+    if (!canonical) throw new Error('A landing não publicou uma URL canônica.');
+    expect(new URL(canonical).toString()).toBe('https://gym-mobile-five.vercel.app/');
+
+    const robots = await (await request.get('/robots.txt')).text();
+    expect(robots).toContain('Allow: /');
+    expect(robots).toContain('Disallow: /inicio');
+
+    const sitemap = await (await request.get('/sitemap.xml')).text();
+    expect(sitemap).toContain('<loc>https://gym-mobile-five.vercel.app/</loc>');
+    expect(sitemap).not.toContain('/inicio');
   });
 });
 
@@ -79,6 +92,26 @@ test.describe('Protecao de rotas', () => {
 });
 
 test.describe('Telas de autenticacao', () => {
+  test('convite Jam captura o fragmento antes do login sem expor o código', async ({ page }) => {
+    const inviteCode = 'abcDEF_1234567890';
+    const response = await page.goto(`/jam/entrar#codigo=${inviteCode}`);
+
+    expect(response?.status()).toBe(200);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Participar de uma Workout Jam' }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/\/jam\/entrar$/);
+    await expect
+      .poll(() => page.evaluate(() => sessionStorage.getItem('gymflow:jam-invite-code')))
+      .toBe(inviteCode);
+
+    const loginHref = await page
+      .getByRole('link', { name: 'Entrar e revisar convite' })
+      .getAttribute('href');
+    expect(loginHref).toContain('destino=%2Fjam%2Fentrar');
+    expect(loginHref).not.toContain(inviteCode);
+  });
+
   test('login exibe os campos esperados', async ({ page }) => {
     await page.goto('/entrar');
 
@@ -100,7 +133,16 @@ test.describe('Telas de autenticacao', () => {
 
   test('recuperacao de senha e alcancavel', async ({ page }) => {
     await page.goto('/entrar');
-    await page.getByRole('link', { name: 'Esqueci minha senha' }).click();
+    const recoveryLink = page.getByRole('link', { name: 'Esqueci minha senha' });
+    await expect(recoveryLink).toHaveAttribute('href', '/recuperar-senha');
+
+    // Sincroniza explicitamente o clique e a transição. Assim o teste continua
+    // exercitando o toque real do Safari sem disputar a asserção do H1 com a
+    // navegação assíncrona do Next.
+    await Promise.all([
+      page.waitForURL((url) => url.pathname === '/recuperar-senha', { timeout: 10_000 }),
+      recoveryLink.click(),
+    ]);
 
     await expect(page.getByRole('heading', { level: 1, name: 'Recuperar senha' })).toBeVisible();
   });

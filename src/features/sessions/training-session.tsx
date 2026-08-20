@@ -11,6 +11,11 @@ import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { WorkoutCelebration } from '@/components/feedback/workout-celebration';
+import { WorkoutJamPanel } from '@/features/jam/workout-jam-panel';
+import { WorkoutJamTraining } from '@/features/jam/workout-jam-training';
+import { useWorkoutJam } from '@/features/jam/use-workout-jam';
+import { loadActiveSessionOnline } from '@/features/jam/api';
+import { shouldBlockInitialJamCheck } from '@/features/jam/initial-check';
 import { useProfile } from '@/features/profile/use-profile';
 import { workoutKeys } from '@/features/workouts/workout-manager';
 import type { components } from '@/lib/api/generated/types';
@@ -25,7 +30,12 @@ import {
   startTraining,
   updateTrainingExercise,
 } from '@/lib/offline/training';
-import { discardOfflineChanges, retryBlockedOperations } from '@/lib/offline/repository';
+import {
+  discardOfflineChanges,
+  removeActiveSession,
+  retryBlockedOperations,
+  writeActiveSession,
+} from '@/lib/offline/repository';
 import { syncOutbox } from '@/lib/offline/sync';
 import type { OfflineQueueStatus, UpsertSetRequest } from '@/lib/offline/types';
 import { useOfflineOwnerId, useOfflineQueueStatus } from '@/lib/offline/use-offline-status';
@@ -49,6 +59,7 @@ export function TrainingSession() {
   const owner = useOfflineOwnerId();
   const ownerId = owner.data;
   const queueStatus = useOfflineQueueStatus(ownerId);
+  const jam = useWorkoutJam(ownerId);
   const firstName = profile.data?.fullName?.trim().split(/\s+/)[0] ?? null;
 
   const celebration = celebrating ? (
@@ -59,6 +70,66 @@ export function TrainingSession() {
     queryKey: sessionKeys.active,
     enabled: Boolean(ownerId),
     queryFn: () => loadActiveSession(ownerId!),
+  });
+
+  const jamSnapshot = jam.active.data;
+  const jamParticipant = jamSnapshot?.participants.find(
+    (participant) => participant.profileId === ownerId,
+  );
+  const sessionFromJam = jamSnapshot?.sessions.find(
+    (session) => session.id === jamParticipant?.session?.id,
+  );
+  const lastJamId = jam.lastKnownJamId;
+  const blockInitialJamCheck = shouldBlockInitialJamCheck({
+    online: jam.online,
+    knownJamStorageReady: jam.knownJamStorageReady,
+    hasKnownJam: Boolean(lastJamId),
+    pending: jam.active.isPending,
+    error: jam.active.isError,
+  });
+
+  const jamSessionReconciliation = useQuery({
+    queryKey: [
+      'workout-jams',
+      'own-session-reconciliation',
+      sessionFromJam?.id,
+      sessionFromJam?.version,
+      sessionFromJam?.status,
+    ],
+    enabled: Boolean(ownerId && jamSnapshot && sessionFromJam),
+    queryFn: async () => {
+      if (!ownerId || !sessionFromJam) return true;
+      if (sessionFromJam.status === 'ACTIVE') {
+        await writeActiveSession(ownerId, sessionFromJam);
+        queryClient.setQueryData(sessionKeys.active, sessionFromJam);
+      } else {
+        await removeActiveSession(ownerId);
+        queryClient.setQueryData(sessionKeys.active, null);
+      }
+      return true;
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  });
+
+  const postJamReconciliation = useQuery({
+    queryKey: ['workout-jams', 'post-jam-reconciliation', ownerId, lastJamId],
+    enabled: Boolean(ownerId && lastJamId && !jamSnapshot && jam.online),
+    queryFn: async () => {
+      if (!ownerId) return null;
+      const fresh = await loadActiveSessionOnline();
+      if (fresh) {
+        await writeActiveSession(ownerId, fresh);
+        queryClient.setQueryData(sessionKeys.active, fresh);
+      } else {
+        await removeActiveSession(ownerId);
+        queryClient.setQueryData(sessionKeys.active, null);
+      }
+      jam.clearLastKnownJam();
+      return fresh;
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
   });
 
   const workouts = useQuery({
@@ -111,15 +182,143 @@ export function TrainingSession() {
     );
   }
 
-  if (active.data) {
+  if (jam.active.isPending && blockInitialJamCheck) {
+    return (
+      <Card className="border-primary/30" aria-busy="true">
+        <CardTitle>Verificando Workout Jam</CardTitle>
+        <CardDescription className="mt-1">
+          O registro fica pausado até confirmarmos se este treino está vinculado a outra pessoa.
+        </CardDescription>
+      </Card>
+    );
+  }
+
+  if (jam.active.isError && blockInitialJamCheck) {
+    return (
+      <Card className="border-destructive/30">
+        <CardTitle>Não foi possível confirmar a Workout Jam</CardTitle>
+        <p role="alert" className="mt-2 text-sm text-destructive">
+          {describeApiError(
+            jam.active.error,
+            'O registro está pausado para evitar sobrescrever alterações de outro participante.',
+          )}
+        </p>
+        <Button
+          className="mt-3"
+          variant="outline"
+          disabled={!jam.online}
+          onClick={() => void jam.active.refetch()}
+        >
+          Tentar novamente
+        </Button>
+      </Card>
+    );
+  }
+
+  const currentSession = active.data ?? sessionFromJam ?? null;
+  const jamReconciliationPending = Boolean(jamSnapshot) && jamSessionReconciliation.isPending;
+  const jamReconciliationError = jamSnapshot ? jamSessionReconciliation.error : null;
+  const postJamNeedsReconciliation = Boolean(!jamSnapshot && lastJamId);
+  const postJamReconciliationPending =
+    postJamNeedsReconciliation && (postJamReconciliation.isPending || !jam.online);
+  const postJamReconciliationError = postJamNeedsReconciliation
+    ? postJamReconciliation.error
+    : null;
+
+  if (
+    jamReconciliationPending ||
+    jamReconciliationError ||
+    postJamReconciliationPending ||
+    postJamReconciliationError
+  ) {
     return (
       <>
-        <ActiveSessionView
+        <WorkoutJamPanel
           ownerId={ownerId}
-          session={active.data}
+          profile={profile.data}
+          session={currentSession}
           queueStatus={queueStatus}
-          onCompleted={() => setCelebrating(true)}
+          jam={jam}
         />
+        <Card className="border-warning/40 bg-warning/5" aria-busy={!jamReconciliationError}>
+          <CardTitle>Sincronizando seu treino</CardTitle>
+          <CardDescription className="mt-1">
+            O registro fica pausado até o estado confirmado da Jam ser salvo neste aparelho.
+          </CardDescription>
+          {jamReconciliationError || postJamReconciliationError ? (
+            <>
+              <p role="alert" className="mt-3 text-sm text-destructive">
+                {describeApiError(
+                  jamReconciliationError ?? postJamReconciliationError,
+                  'Não foi possível reconciliar o treino após a Jam.',
+                )}
+              </p>
+              <Button
+                className="mt-3"
+                variant="outline"
+                disabled={!jam.online}
+                onClick={() =>
+                  void (jamSnapshot
+                    ? jamSessionReconciliation.refetch()
+                    : postJamReconciliation.refetch())
+                }
+              >
+                Tentar novamente
+              </Button>
+            </>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">
+              {jam.online ? 'Atualizando dados...' : 'Conecte-se à internet para continuar.'}
+            </p>
+          )}
+        </Card>
+      </>
+    );
+  }
+
+  if (currentSession) {
+    return (
+      <>
+        <WorkoutJamPanel
+          ownerId={ownerId}
+          profile={profile.data}
+          session={currentSession}
+          queueStatus={queueStatus}
+          jam={jam}
+        />
+        {jamSnapshot?.status === 'ACTIVE' ? (
+          <WorkoutJamTraining
+            ownerId={ownerId}
+            jam={jam}
+            onOwnSessionUpdated={(updated) => {
+              queryClient.setQueryData(sessionKeys.active, updated);
+            }}
+            onOwnSessionFinished={(updated, jamEnded) => {
+              if (updated.status === 'COMPLETED') setCelebrating(true);
+              queryClient.setQueryData(sessionKeys.active, null);
+              void removeActiveSession(ownerId);
+              if (jamEnded) {
+                jam.setSnapshot(null);
+                return;
+              }
+            }}
+          />
+        ) : jamSnapshot?.status === 'PENDING' ? (
+          <Card className="border-warning/40 bg-warning/5">
+            <CardTitle>Treino pausado enquanto o convite está aberto</CardTitle>
+            <CardDescription className="mt-1">
+              Para manter os dois snapshots iguais, aguarde o aceite. Se quiser continuar solo,
+              encerre a Jam acima.
+            </CardDescription>
+          </Card>
+        ) : (
+          <ActiveSessionView
+            ownerId={ownerId}
+            session={currentSession}
+            queueStatus={queueStatus}
+            onCompleted={() => setCelebrating(true)}
+          />
+        )}
         {celebration}
       </>
     );
@@ -127,6 +326,13 @@ export function TrainingSession() {
 
   return (
     <>
+      <WorkoutJamPanel
+        ownerId={ownerId}
+        profile={profile.data}
+        session={null}
+        queueStatus={queueStatus}
+        jam={jam}
+      />
       <Card className="border-primary/30 bg-primary/5">
         <div className="mb-3">
           <CardTitle>Começar treino</CardTitle>
@@ -272,7 +478,7 @@ function ActiveSessionView({
       ))}
 
       <Card>
-        <FormField id="session-notes" label="Observacoes finais">
+        <FormField id="session-notes" label="Observações finais">
           <Textarea
             id="session-notes"
             value={notes}
